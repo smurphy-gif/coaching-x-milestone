@@ -28,7 +28,7 @@ const COL = {
   completion: { officer: "board_relation_mm4wn6vc", task: "board_relation_mm4w5ejz", date: "date_mm4we0jx", notes: "long_text_mm4w63kq" },
   dailyTask: { desc: "long_text_mm4wj5a5", category: "dropdown_mm4wwmsf", recurring: "boolean_mm4wvhbv", assigned: "board_relation_mm4wsnd2" },
   checkin: { officer: "board_relation_mm4wvq8k", dailyTask: "board_relation_mm4wcz7g", date: "date_mm4wafqn", notes: "long_text_mm4wkqjd" },
-  resource: { type: "dropdown_mm4w29v6", category: "dropdown_mm4wendj", desc: "long_text_mm4wep10" },
+  resource: { type: "dropdown_mm4w29v6", category: "dropdown_mm4wendj", desc: "long_text_mm4wep10", file: "file_mm4w9rsm" },
   message: { type: "dropdown_mm4wz3z0", body: "long_text_mm4wtzqt", date: "date_mm4wk56f", recipients: "board_relation_mm4w5hyb" },
 };
 
@@ -67,6 +67,7 @@ query FetchAll($officersBoard:[ID!],$tasksBoard:[ID!],$completionsBoard:[ID!],$d
     id type
     ... on DropdownValue { values { label } }
     ... on LongTextValue { text }
+    ... on FileValue { files { ... on FileAssetValue { name asset_id } } }
   } } } }
   tasks: boards(ids:$tasksBoard) { items_page(limit:500) { items { id name created_at column_values {
     id type
@@ -129,6 +130,8 @@ export async function fetchAllData() {
       category: dropdownLabel(c[COL.resource.category]) || "Sales",
       description: c[COL.resource.desc]?.text || "",
       createdAt: (it.created_at || "").slice(0, 10),
+      hasFile: (c[COL.resource.file]?.files || []).length > 0,
+      fileName: c[COL.resource.file]?.files?.[0]?.name || "",
     };
   });
 
@@ -247,11 +250,41 @@ export const monday = {
     }, true);
   },
   async createResource(r) {
-    return createItem(BOARDS.resources, r.title, {
+    const id = await createItem(BOARDS.resources, r.title, {
       [COL.resource.type]: { labels: [r.type] },
       [COL.resource.category]: { labels: [r.category] },
       [COL.resource.desc]: r.description || "",
     }, true);
+    if (r.file) await monday.uploadResourceFile(id, r.file);
+    return id;
+  },
+  // Monday's file upload goes through a separate multipart endpoint, not the
+  // regular JSON /v2 GraphQL endpoint used everywhere else in this file.
+  async uploadResourceFile(itemId, file) {
+    const form = new FormData();
+    form.append(
+      "query",
+      `mutation ($file: File!) { add_file_to_column (item_id: ${itemId}, column_id: "${COL.resource.file}", file: $file) { id } }`
+    );
+    form.append("variables[file]", file);
+    const res = await fetch(`${API_URL}/file`, {
+      method: "POST",
+      headers: { Authorization: TOKEN },
+      body: form,
+    });
+    const json = await res.json();
+    if (json.errors) throw new Error(json.errors.map((e) => e.message).join("; "));
+    return json.data;
+  },
+  // Fetches a fresh short-lived download URL for a resource's file right
+  // when someone wants to open it (Monday's public_url expires after an
+  // hour, so we don't store it — just look it up on click).
+  async getResourceFileUrl(itemId) {
+    const data = await gql(
+      `query($id:[ID!]){ items(ids:$id){ column_values(ids:["${COL.resource.file}"]){ ... on FileValue { files { ... on FileAssetValue { asset { public_url } } } } } } }`,
+      { id: [itemId] }
+    );
+    return data.items?.[0]?.column_values?.[0]?.files?.[0]?.asset?.public_url || null;
   },
   async createOfficer(o) {
     return createItem(BOARDS.officers, o.name, {
