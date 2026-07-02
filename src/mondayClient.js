@@ -278,6 +278,16 @@ export const monday = {
     }, true);
   },
   async deleteDailyTask(id) { await deleteItem(id); },
+  // Adds a newly-created officer to every recurring daily task's assignee
+  // list, so they automatically get today's (and every future day's)
+  // recurring check-ins without anyone having to edit each task by hand.
+  async addOfficerToRecurringDailyTasks(officerId, recurringDailyTasks) {
+    await Promise.all(recurringDailyTasks.map(t =>
+      updateItem(BOARDS.dailyTasks, t.id, {
+        [COL.dailyTask.assigned]: { item_ids: [...t.assignedTo.map(Number), Number(officerId)] },
+      })
+    ));
+  },
   async toggleDailyCheckin(officerId, dailyTaskId, date, existingId) {
     if (existingId) { await deleteItem(existingId); return null; }
     return createItem(BOARDS.dailyCheckins, `Checkin — ${officerId}-${dailyTaskId}-${date}`, {
