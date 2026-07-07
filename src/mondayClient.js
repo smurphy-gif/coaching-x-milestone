@@ -248,6 +248,18 @@ export const monday = {
       [COL.task.assigned]: { item_ids: t.assignedTo.map(Number) },
     }, true);
   },
+  async updateTask(id, t) {
+    await renameItem(BOARDS.tasks, id, t.title);
+    await updateItem(BOARDS.tasks, id, {
+      [COL.task.desc]: t.description || "",
+      [COL.task.category]: { labels: [t.category] },
+      [COL.task.priority]: { label: t.priority.charAt(0).toUpperCase() + t.priority.slice(1) },
+      [COL.task.due]: { date: t.dueDate },
+      [COL.task.resource]: { item_ids: t.resourceId ? [Number(t.resourceId)] : [] },
+      [COL.task.assigned]: { item_ids: t.assignedTo.map(Number) },
+    }, true);
+  },
+  async deleteTask(id) { await deleteItem(id); },
   async createResource(r) {
     return createItem(BOARDS.resources, r.title, {
       [COL.resource.type]: { labels: [r.type] },
@@ -281,6 +293,15 @@ export const monday = {
     }, true);
   },
   async deleteDailyTask(id) { await deleteItem(id); },
+  async updateDailyTask(id, t) {
+    await renameItem(BOARDS.dailyTasks, id, t.title);
+    await updateItem(BOARDS.dailyTasks, id, {
+      [COL.dailyTask.desc]: t.description || "",
+      [COL.dailyTask.category]: { labels: [t.category] },
+      [COL.dailyTask.recurring]: { checked: t.recurring ? "true" : "false" },
+      [COL.dailyTask.assigned]: { item_ids: t.assignedTo.map(Number) },
+    }, true);
+  },
   // Adds a newly-created officer to every recurring daily task's assignee
   // list, so they automatically get today's (and every future day's)
   // recurring check-ins without anyone having to edit each task by hand.
