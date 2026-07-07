@@ -121,7 +121,13 @@ export async function fetchAllData() {
   const d = await gql(FETCH_ALL_QUERY, {
     officersBoard: [BOARDS.officers], tasksBoard: [BOARDS.tasks], completionsBoard: [BOARDS.taskCompletions],
     dailyTasksBoard: [BOARDS.dailyTasks], checkinsBoard: [BOARDS.dailyCheckins], resourcesBoard: [BOARDS.resources], messagesBoard: [BOARDS.messages],
-    metricsBoard: [BOARDS.metrics],
+    // Falls back to a board we know exists if VITE_MONDAY_BOARD_METRICS isn't
+    // set yet (e.g. right after a deploy, before the env var is added) — a
+    // missing/null ID here would hard-fail the entire query, breaking every
+    // page, not just Activity. The metrics mapping below only keeps rows
+    // that actually have an officer + date, so a mismatched fallback board
+    // just yields an empty metrics list instead of crashing the app.
+    metricsBoard: [BOARDS.metrics || BOARDS.officers],
   });
 
   const officers = (d.officers[0]?.items_page.items || []).map((it) => {
