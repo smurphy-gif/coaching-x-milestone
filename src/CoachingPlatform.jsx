@@ -40,6 +40,7 @@ const I={
   pdf:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>,
   video:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>,
   doc:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>,
+  trend:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>,
 };
 
 const dU=(d)=>Math.ceil((new Date(d)-new Date(TODAY))/864e5);
@@ -72,6 +73,7 @@ export default function App(){
   const[loadError,setLoadError]=useState(null);
   const[search,setSearch]=useState("");
   const[dDate,setDDate]=useState(TODAY);
+  const[aDate,setADate]=useState(TODAY);
   const[msgTab,setMsgTab]=useState("all");
 
   async function reload(){try{const d=await fetchAllData();setData(d);setLoadError(null);}catch(e){setLoadError(e.message||"Failed to load from Monday");}finally{setLoaded(true);}}
@@ -96,6 +98,7 @@ export default function App(){
   async function setDN(oid,did,dt,n){const k=`${oid}-${did}-${dt}`,existing=data.dailyCompletions[k];if(!existing)return;try{await monday.setDailyCheckinNotes(existing._id,n);setData(p=>({...p,dailyCompletions:{...p.dailyCompletions,[k]:{...p.dailyCompletions[k],notes:n}}}));}catch(e){console.error("setDN failed",e);}}
   async function delDT(did){try{await monday.deleteDailyTask(did);setData(p=>{const dc={...p.dailyCompletions};Object.keys(dc).forEach(k=>{if(k.includes(`-${did}-`))delete dc[k];});return{...p,dailyTasks:p.dailyTasks.filter(t=>t.id!==did),dailyCompletions:dc};});}catch(e){console.error("delDT failed",e);}}
   async function addMsg(m){try{const id=await monday.createMessage(m);setData(p=>({...p,messages:[{...m,id,date:TODAY,read:["coach"]},...p.messages]}));}catch(e){console.error("addMsg failed",e);}}
+  async function logM(oid,dt,patch){const existing=data.metrics.find(m=>m.officerId===oid&&m.date===dt);try{const id=await monday.logMetrics(existing?.id,oid,dt,patch);setData(p=>({...p,metrics:existing?p.metrics.map(m=>m.id===existing.id?{...m,...patch,id}:m):[...p.metrics,{...patch,id,officerId:oid,date:dt}]}));}catch(e){console.error("logM failed",e);}}
 
   if(loadError)return<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:C.bg,color:C.text,fontFamily:"'DM Sans',sans-serif",flexDirection:"column",gap:10,padding:24,textAlign:"center"}}><p style={{color:C.red,fontWeight:600}}>Couldn't load data from Monday.com</p><p style={{opacity:0.6,fontSize:12,maxWidth:420}}>{loadError}</p><p style={{opacity:0.5,fontSize:12}}>Check your .env file has a valid VITE_MONDAY_API_TOKEN and board IDs, then refresh.</p></div>;
   if(!loaded||!data)return<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:C.bg,color:C.text,fontFamily:"'DM Sans',sans-serif"}}><p style={{opacity:0.6}}>Loading from Monday...</p></div>;
@@ -130,6 +133,7 @@ export default function App(){
             {key:"officers",icon:I.people,label:"Loan Officers"},
             {key:"daily",icon:I.daily,label:"Daily Tasks"},
             {key:"tasks",icon:I.tasks,label:"Coaching Tasks"},
+            {key:"activity",icon:I.trend,label:"Activity"},
             {key:"resources",icon:I.resources,label:"Resources"},
             {key:"messages",icon:I.msg,label:"Messages",badge:unreadCount},
           ].map(item=>(
@@ -158,6 +162,7 @@ export default function App(){
         {page==="officer-detail"&&selO&&<OfficerDetail data={data} officer={selO} oS={oS} toggle={toggleC} addN={addN} togD={togD} setDN={setDN} nav={nav} setModal={setModal}/>}
         {page==="daily"&&<DailyPage data={data} date={dDate} setDate={setDDate} togD={togD} setDN={setDN} setModal={setModal} delDT={delDT}/>}
         {page==="tasks"&&<TasksPage data={data} filter={tF} setFilter={setTF} setModal={setModal} toggle={toggleC}/>}
+        {page==="activity"&&<ActivityPage data={data} date={aDate} setDate={setADate} logM={logM}/>}
         {page==="resources"&&<ResourcesPage data={data} filter={rF} setFilter={setRF} setModal={setModal}/>}
         {page==="messages"&&<MessagesPage data={data} tab={msgTab} setTab={setMsgTab} setModal={setModal}/>}
       </main>
@@ -282,6 +287,95 @@ function DailyPage({data,date,setDate,togD,setDN,setModal,delDT}){
         </div>;})}
       </div>;
     })}
+  </div>;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ACTIVITY / FUNNEL TRACKER
+// ═══════════════════════════════════════════════════════════════════════════════
+const FUNNEL_FIELDS=[
+  {key:"calls",label:"Calls"},{key:"meetings",label:"Meetings"},{key:"applications",label:"Applications"},
+  {key:"preapprovals",label:"Preapprovals"},{key:"closed",label:"Closed Loans"},
+];
+const pctOf=(n,d)=>d?Math.round((n/d)*100):0;
+const inPeriod=(dateStr,period)=>{
+  if(period==="all")return true;
+  const diff=Math.floor((new Date(TODAY+"T12:00:00")-new Date(dateStr+"T12:00:00"))/864e5);
+  if(period==="week")return diff>=0&&diff<7;
+  if(period==="month")return diff>=0&&diff<30;
+  return true;
+};
+function sumMetrics(list){return list.reduce((s,m)=>({calls:s.calls+m.calls,meetings:s.meetings+m.meetings,applications:s.applications+m.applications,preapprovals:s.preapprovals+m.preapprovals,closed:s.closed+m.closed}),{calls:0,meetings:0,applications:0,preapprovals:0,closed:0});}
+
+function MetricRow({officer,metric,date,logM}){
+  const[f,setF]=useState({calls:metric?.calls||0,meetings:metric?.meetings||0,applications:metric?.applications||0,preapprovals:metric?.preapprovals||0,closed:metric?.closed||0,notes:metric?.notes||""});
+  const[dirty,setDirty]=useState(false);
+  const s=(k,v)=>{setF(p=>({...p,[k]:v}));setDirty(true);};
+  const save=()=>{logM(officer.id,date,f);setDirty(false);};
+  const numStyle={...sS,width:56,textAlign:"center",padding:"7px 4px"};
+  return<div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 10px",borderRadius:7,background:dirty?"rgba(212,168,75,0.04)":"transparent",border:`1px solid ${dirty?"rgba(212,168,75,0.15)":"rgba(255,255,255,0.03)"}`,marginBottom:2,flexWrap:"wrap"}}>
+    <div style={{width:26,height:26,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:C.white,background:`linear-gradient(135deg,${C.primary}30,${C.accent}30)`,flexShrink:0}}>{officer.avatar}</div>
+    <span style={{fontSize:12,color:C.white,fontWeight:500,minWidth:100}}>{officer.name}</span>
+    {FUNNEL_FIELDS.map(ff=><div key={ff.key} style={{textAlign:"center"}}><input type="number" min="0" value={f[ff.key]} onChange={e=>s(ff.key,Math.max(0,Number(e.target.value)||0))} style={numStyle}/></div>)}
+    <input value={f.notes} onChange={e=>s("notes",e.target.value)} placeholder="Names / notes of people called..." style={{...sI,flex:1,minWidth:160,padding:"7px 9px",fontSize:12}}/>
+    {dirty&&<button onClick={save} style={{background:C.primary,border:"none",color:"#fff",fontSize:11,fontWeight:600,padding:"6px 12px",borderRadius:6,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>Save</button>}
+  </div>;
+}
+
+function ActivityPage({data,date,setDate,logM}){
+  const[period,setPeriod]=useState("week");
+  const isT=date===TODAY;
+  const periodMetrics=data.metrics.filter(m=>inPeriod(m.date,period));
+  const team=sumMetrics(periodMetrics);
+  const ratios=[
+    {label:"Calls → Meetings",pct:pctOf(team.meetings,team.calls)},
+    {label:"Meetings → Apps",pct:pctOf(team.applications,team.meetings)},
+    {label:"Apps → Preapprovals",pct:pctOf(team.preapprovals,team.applications)},
+    {label:"Preapprovals → Closed",pct:pctOf(team.closed,team.preapprovals)},
+    {label:"Calls → Closed (overall)",pct:pctOf(team.closed,team.calls)},
+  ];
+  return<div>
+    <div style={{marginBottom:6}}><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Space Grotesk',sans-serif"}}>Activity</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>Calls, meetings, applications, preapprovals & closed loans — daily log and conversion ratios</p></div>
+
+    <h3 style={{fontSize:13,fontWeight:600,color:C.white,margin:"20px 0 8px",fontFamily:"'Space Grotesk',sans-serif"}}>Log for the day</h3>
+    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:"9px 14px",width:"fit-content"}}>
+      <button onClick={()=>setDate(shD(date,-1))} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",padding:2,display:"flex"}}>{I.chevL}</button>
+      <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{color:C.primary}}>{I.cal}</span><span style={{fontSize:14,fontWeight:600,color:C.white,minWidth:150}}>{fS(date)}</span>{isT&&<span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:4,background:C.primaryDim,color:C.primary,fontFamily:"'Space Grotesk',sans-serif"}}>TODAY</span>}</div>
+      <button onClick={()=>setDate(shD(date,1))} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",padding:2,display:"flex"}}>{I.chevR}</button>
+      {!isT&&<button onClick={()=>setDate(TODAY)} style={{marginLeft:6,background:C.primaryDim,border:`1px solid rgba(45,183,166,0.2)`,borderRadius:6,padding:"4px 10px",color:C.primary,fontSize:11,cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>Today</button>}
+    </div>
+    <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:"12px 14px",marginBottom:28}}>
+      <div style={{display:"flex",gap:8,padding:"0 10px 6px",fontSize:9,color:C.dim,textTransform:"uppercase",letterSpacing:0.6,fontFamily:"'Space Grotesk',sans-serif"}}>
+        <div style={{width:26}}/><div style={{minWidth:100}}>Officer</div>{FUNNEL_FIELDS.map(ff=><div key={ff.key} style={{width:56,textAlign:"center"}}>{ff.label}</div>)}<div style={{flex:1,minWidth:160}}>Notes</div>
+      </div>
+      {data.officers.length===0&&<p style={{color:C.muted,fontSize:13,padding:"6px 10px"}}>Add loan officers to start tracking activity.</p>}
+      {data.officers.map(o=>{const metric=data.metrics.find(m=>m.officerId===o.id&&m.date===date);return<MetricRow key={`${o.id}-${date}`} officer={o} metric={metric} date={date} logM={logM}/>;})}
+    </div>
+
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,flexWrap:"wrap",gap:8}}>
+      <h3 style={{fontSize:13,fontWeight:600,color:C.white,margin:0,fontFamily:"'Space Grotesk',sans-serif"}}>Conversion Summary</h3>
+      <div style={{display:"flex",gap:6}}>{[{k:"week",l:"This Week"},{k:"month",l:"This Month"},{k:"all",l:"All Time"}].map(p=><button key={p.k} onClick={()=>setPeriod(p.k)} style={{padding:"5px 12px",borderRadius:6,border:"1px solid",fontSize:11,cursor:"pointer",fontWeight:500,fontFamily:"inherit",background:period===p.k?C.primaryDim:"transparent",borderColor:period===p.k?`rgba(45,183,166,0.3)`:C.border,color:period===p.k?C.primary:C.muted}}>{p.l}</button>)}</div>
+    </div>
+
+    <div style={{display:"flex",gap:12,marginBottom:16,flexWrap:"wrap"}}>
+      <Stat label="Calls" value={team.calls}/><Stat label="Meetings" value={team.meetings} accent={C.accent}/><Stat label="Applications" value={team.applications} accent={C.gold}/><Stat label="Preapprovals" value={team.preapprovals} accent={C.primary}/><Stat label="Closed Loans" value={team.closed} accent={C.green}/>
+    </div>
+    <div style={{display:"flex",gap:12,marginBottom:24,flexWrap:"wrap"}}>
+      {ratios.map(r=><Stat key={r.label} label={r.label} value={`${r.pct}%`} accent={r.pct>=50?C.green:r.pct>=25?C.gold:C.muted}/>)}
+    </div>
+
+    <h3 style={{fontSize:13,fontWeight:600,color:C.white,margin:"0 0 10px",fontFamily:"'Space Grotesk',sans-serif"}}>By Officer</h3>
+    <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,overflow:"hidden"}}>
+      <div style={{display:"grid",gridTemplateColumns:"1.3fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr 0.8fr 0.8fr",gap:4,padding:"9px 14px",background:"rgba(255,255,255,0.03)",fontSize:9,color:C.dim,textTransform:"uppercase",letterSpacing:0.5,fontFamily:"'Space Grotesk',sans-serif"}}>
+        <div>Officer</div><div>Calls</div><div>Meetings</div><div>Apps</div><div>Preapp.</div><div>Closed</div><div>Calls→Mtg</div><div>App→Preapp</div>
+      </div>
+      {data.officers.map(o=>{const m=sumMetrics(periodMetrics.filter(x=>x.officerId===o.id));return<div key={o.id} style={{display:"grid",gridTemplateColumns:"1.3fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr 0.8fr 0.8fr",gap:4,padding:"9px 14px",fontSize:12,color:C.text,borderTop:`1px solid ${C.border}`}}>
+        <div style={{display:"flex",alignItems:"center",gap:7,fontWeight:500,color:C.white}}><div style={{width:20,height:20,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:C.white,background:`linear-gradient(135deg,${C.primary}30,${C.accent}30)`,flexShrink:0}}>{o.avatar}</div>{o.name}</div>
+        <div>{m.calls}</div><div>{m.meetings}</div><div>{m.applications}</div><div>{m.preapprovals}</div><div style={{color:C.green,fontWeight:600}}>{m.closed}</div>
+        <div style={{color:C.muted}}>{pctOf(m.meetings,m.calls)}%</div><div style={{color:C.muted}}>{pctOf(m.preapprovals,m.applications)}%</div>
+      </div>;})}
+      {data.officers.length===0&&<p style={{color:C.muted,fontSize:13,padding:"12px 14px"}}>No officers yet.</p>}
+    </div>
   </div>;
 }
 

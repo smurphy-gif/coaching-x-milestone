@@ -15,6 +15,7 @@ export const BOARDS = {
   dailyCheckins: import.meta.env.VITE_MONDAY_BOARD_DAILY_CHECKINS,
   resources: import.meta.env.VITE_MONDAY_BOARD_RESOURCES,
   messages: import.meta.env.VITE_MONDAY_BOARD_MESSAGES,
+  metrics: import.meta.env.VITE_MONDAY_BOARD_METRICS,
 };
 
 // Column ids — created once when the boards were set up. If you rebuild the
@@ -30,6 +31,10 @@ const COL = {
   checkin: { officer: "board_relation_mm4wvq8k", dailyTask: "board_relation_mm4wcz7g", date: "date_mm4wafqn", notes: "long_text_mm4wkqjd" },
   resource: { type: "dropdown_mm4w29v6", category: "dropdown_mm4wendj", desc: "long_text_mm4wep10", link: "link_mm4w7bmx" },
   message: { type: "dropdown_mm4wz3z0", body: "long_text_mm4wtzqt", date: "date_mm4wk56f", recipients: "board_relation_mm4w5hyb" },
+  metric: {
+    officer: "board_relation_mm51sfr", date: "date_mm515a0f", calls: "numeric_mm5154m8", meetings: "numeric_mm51j3tz",
+    applications: "numeric_mm51nn1r", preapprovals: "numeric_mm515vkn", closed: "numeric_mm51q9kw", notes: "long_text_mm51y86",
+  },
 };
 
 const DEFAULT_TEAMS = ["Purchase", "Refinance", "FHA/VA", "Jumbo", "USDA"];
@@ -56,7 +61,7 @@ const linkedIds = (cv) => (cv?.linked_item_ids || []).map(String);
 const isChecked = (cv) => cv?.checked === "true" || cv?.checked === true;
 
 const FETCH_ALL_QUERY = `
-query FetchAll($officersBoard:[ID!],$tasksBoard:[ID!],$completionsBoard:[ID!],$dailyTasksBoard:[ID!],$checkinsBoard:[ID!],$resourcesBoard:[ID!],$messagesBoard:[ID!]) {
+query FetchAll($officersBoard:[ID!],$tasksBoard:[ID!],$completionsBoard:[ID!],$dailyTasksBoard:[ID!],$checkinsBoard:[ID!],$resourcesBoard:[ID!],$messagesBoard:[ID!],$metricsBoard:[ID!]) {
   officers: boards(ids:$officersBoard) { items_page(limit:500) { items { id name created_at column_values {
     id type
     ... on EmailValue { email }
@@ -103,12 +108,20 @@ query FetchAll($officersBoard:[ID!],$tasksBoard:[ID!],$completionsBoard:[ID!],$d
     ... on DateValue { date }
     ... on BoardRelationValue { linked_item_ids }
   } } } }
+  metrics: boards(ids:$metricsBoard) { items_page(limit:500) { items { id name column_values {
+    id type
+    ... on BoardRelationValue { linked_item_ids }
+    ... on DateValue { date }
+    ... on NumbersValue { number }
+    ... on LongTextValue { text }
+  } } } }
 }`;
 
 export async function fetchAllData() {
   const d = await gql(FETCH_ALL_QUERY, {
     officersBoard: [BOARDS.officers], tasksBoard: [BOARDS.tasks], completionsBoard: [BOARDS.taskCompletions],
     dailyTasksBoard: [BOARDS.dailyTasks], checkinsBoard: [BOARDS.dailyCheckins], resourcesBoard: [BOARDS.resources], messagesBoard: [BOARDS.messages],
+    metricsBoard: [BOARDS.metrics],
   });
 
   const officers = (d.officers[0]?.items_page.items || []).map((it) => {
@@ -193,9 +206,24 @@ export async function fetchAllData() {
     })
     .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 
+  const metrics = (d.metrics[0]?.items_page.items || []).map((it) => {
+    const c = colMap(it);
+    return {
+      id: it.id,
+      officerId: linkedIds(c[COL.metric.officer])[0] || "",
+      date: c[COL.metric.date]?.date || "",
+      calls: Number(c[COL.metric.calls]?.number || 0),
+      meetings: Number(c[COL.metric.meetings]?.number || 0),
+      applications: Number(c[COL.metric.applications]?.number || 0),
+      preapprovals: Number(c[COL.metric.preapprovals]?.number || 0),
+      closed: Number(c[COL.metric.closed]?.number || 0),
+      notes: c[COL.metric.notes]?.text || "",
+    };
+  }).filter((m) => m.officerId && m.date);
+
   const teams = Array.from(new Set([...DEFAULT_TEAMS, ...officers.map((o) => o.team)]));
 
-  return { officers, resources, tasks, completions, teams, dailyTasks, dailyCompletions, messages };
+  return { officers, resources, tasks, completions, teams, dailyTasks, dailyCompletions, messages, metrics };
 }
 
 // ─── Mutations ────────────────────────────────────────────────────────────
@@ -330,5 +358,26 @@ export const monday = {
       [COL.message.date]: { date: new Date().toISOString().slice(0, 10) },
       ...(m.to?.length ? { [COL.message.recipients]: { item_ids: m.to.map(Number) } } : {}),
     }, true);
+  },
+  // Upsert-style: pass existingId if a metrics row already exists for this
+  // officer+date (caller looks this up locally), otherwise a new row is made.
+  async logMetrics(existingId, officerId, date, m) {
+    const cv = {
+      [COL.metric.calls]: Number(m.calls) || 0,
+      [COL.metric.meetings]: Number(m.meetings) || 0,
+      [COL.metric.applications]: Number(m.applications) || 0,
+      [COL.metric.preapprovals]: Number(m.preapprovals) || 0,
+      [COL.metric.closed]: Number(m.closed) || 0,
+      [COL.metric.notes]: m.notes || "",
+    };
+    if (existingId) {
+      await updateItem(BOARDS.metrics, existingId, cv);
+      return existingId;
+    }
+    return createItem(BOARDS.metrics, `Metrics — ${officerId}-${date}`, {
+      [COL.metric.officer]: { item_ids: [Number(officerId)] },
+      [COL.metric.date]: { date },
+      ...cv,
+    });
   },
 };
