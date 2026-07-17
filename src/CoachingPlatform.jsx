@@ -64,8 +64,7 @@ function Confirm({msg,sub,onOk,onNo}){return<div style={{position:"fixed",inset:
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function App(){
   const[data,setData]=useState(null);
-  const[page,setPage]=useState("dashboard");
-  const[selO,setSelO]=useState(null);
+  const[expandedOfficerId,setExpandedOfficerId]=useState(null);
   const[modal,setModal]=useState(null);
   const[tF,setTF]=useState("all");
   const[rF,setRF]=useState("all");
@@ -74,7 +73,6 @@ export default function App(){
   const[search,setSearch]=useState("");
   const[dDate,setDDate]=useState(TODAY);
   const[aDate,setADate]=useState(TODAY);
-  const[msgTab,setMsgTab]=useState("all");
 
   async function reload(){try{const d=await fetchAllData();setData(d);setLoadError(null);}catch(e){setLoadError(e.message||"Failed to load from Monday");}finally{setLoaded(true);}}
   useEffect(()=>{reload();},[]);
@@ -97,7 +95,6 @@ export default function App(){
   async function togD(oid,did,dt){const k=`${oid}-${did}-${dt}`,existing=data.dailyCompletions[k];try{const newId=await monday.toggleDailyCheckin(oid,did,dt,existing?._id);setData(p=>{const dc={...p.dailyCompletions};if(existing)delete dc[k];else dc[k]={done:true,notes:"",_id:newId};return{...p,dailyCompletions:dc};});}catch(e){console.error("togD failed",e);}}
   async function setDN(oid,did,dt,n){const k=`${oid}-${did}-${dt}`,existing=data.dailyCompletions[k];if(!existing)return;try{await monday.setDailyCheckinNotes(existing._id,n);setData(p=>({...p,dailyCompletions:{...p.dailyCompletions,[k]:{...p.dailyCompletions[k],notes:n}}}));}catch(e){console.error("setDN failed",e);}}
   async function delDT(did){try{await monday.deleteDailyTask(did);setData(p=>{const dc={...p.dailyCompletions};Object.keys(dc).forEach(k=>{if(k.includes(`-${did}-`))delete dc[k];});return{...p,dailyTasks:p.dailyTasks.filter(t=>t.id!==did),dailyCompletions:dc};});}catch(e){console.error("delDT failed",e);}}
-  async function addMsg(m){try{const id=await monday.createMessage(m);setData(p=>({...p,messages:[{...m,id,date:TODAY,read:["coach"]},...p.messages]}));}catch(e){console.error("addMsg failed",e);}}
   async function logM(oid,dt,patch){const existing=data.metrics.find(m=>m.officerId===oid&&m.date===dt);try{const id=await monday.logMetrics(existing?.id,oid,dt,patch);setData(p=>({...p,metrics:existing?p.metrics.map(m=>m.id===existing.id?{...m,...patch,id}:m):[...p.metrics,{...patch,id,officerId:oid,date:dt}]}));}catch(e){console.error("logM failed",e);}}
   async function saveGoals(g){try{const id=await monday.updateGoals(data.goals._itemId,g);setData(p=>({...p,goals:{...g,_itemId:id}}));}catch(e){console.error("saveGoals failed",e);}}
 
@@ -107,8 +104,8 @@ export default function App(){
   const oS=oid=>{const a=data.tasks.filter(t=>t.assignedTo.includes(oid)),c=a.filter(t=>data.completions[`${oid}-${t.id}`]),ov=a.filter(t=>!data.completions[`${oid}-${t.id}`]&&dU(t.dueDate)<0);return{total:a.length,completed:c.length,overdue:ov.length,rate:a.length?Math.round((c.length/a.length)*100):0};};
   const gS={totalTasks:data.tasks.reduce((s,t)=>s+t.assignedTo.length,0),totalCompleted:Object.keys(data.completions).length,avgRate:data.officers.length?Math.round(data.officers.reduce((s,o)=>s+oS(o.id).rate,0)/data.officers.length):0,overdue:data.officers.reduce((s,o)=>s+oS(o.id).overdue,0)};
   const dSt=dt=>{let tot=0,dn=0;data.dailyTasks.forEach(t=>t.assignedTo.forEach(oid=>{if(data.officers.find(o=>o.id===oid)){tot++;if(data.dailyCompletions[`${oid}-${t.id}-${dt}`])dn++;}}));return{tot,dn,pct:tot?Math.round((dn/tot)*100):0};};
-  const nav=(pg,o=null)=>{setPage(pg);setSelO(o);setSearch("");};
-  const unreadCount=data.messages.filter(m=>m.type==="announcement"&&!m.read.includes("coach")).length;
+  const scrollTo=(id)=>{document.getElementById(id)?.scrollIntoView({behavior:"smooth",block:"start"});};
+  const goToOfficer=(o)=>{setSearch("");setExpandedOfficerId(o.id);scrollTo("officers");};
 
   return(
     <div style={{fontFamily:"'DM Sans',sans-serif",background:C.bg,color:C.text,minHeight:"100vh",display:"flex"}}>
@@ -136,17 +133,14 @@ export default function App(){
             {key:"tasks",icon:I.tasks,label:"Coaching Tasks"},
             {key:"activity",icon:I.trend,label:"Activity"},
             {key:"resources",icon:I.resources,label:"Resources"},
-            {key:"messages",icon:I.msg,label:"Messages",badge:unreadCount},
           ].map(item=>(
-            <button key={item.key} onClick={()=>nav(item.key)} style={{
+            <button key={item.key} onClick={()=>scrollTo(item.key)} style={{
               display:"flex",alignItems:"center",gap:10,padding:"10px 20px",margin:"1px 8px",width:"calc(100% - 16px)",
-              borderRadius:8,border:"none",cursor:"pointer",fontSize:13,fontWeight:(page===item.key||(page==="officer-detail"&&item.key==="officers"))?600:400,
-              background:(page===item.key||(page==="officer-detail"&&item.key==="officers"))?C.primaryDim:"transparent",
-              color:(page===item.key||(page==="officer-detail"&&item.key==="officers"))?C.primary:C.muted,
+              borderRadius:8,border:"none",cursor:"pointer",fontSize:13,fontWeight:400,
+              background:"transparent",color:C.muted,
               transition:"all 0.15s",fontFamily:"inherit",textAlign:"left",position:"relative",
-            }}>
+            }} onMouseEnter={e=>{e.currentTarget.style.background=C.primaryDim;e.currentTarget.style.color=C.primary;}} onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color=C.muted;}}>
               {item.icon}{item.label}
-              {item.badge>0&&<span style={{marginLeft:"auto",background:C.red,color:"#fff",fontSize:9,fontWeight:700,borderRadius:10,padding:"1px 6px",minWidth:16,textAlign:"center"}}>{item.badge}</span>}
             </button>
           ))}
         </div>
@@ -156,16 +150,19 @@ export default function App(){
         </div>
       </nav>
 
-      {/* ── Main ── */}
+      {/* ── Main — everything on one scrollable page ── */}
       <main style={{flex:1,padding:"24px 32px",overflowY:"auto",maxHeight:"100vh"}}>
-        {page==="dashboard"&&<Dashboard data={data} g={gS} oS={oS} nav={nav} dSt={dSt(TODAY)}/>}
-        {page==="officers"&&<Officers data={data} oS={oS} nav={nav} setModal={setModal} search={search} setSearch={setSearch}/>}
-        {page==="officer-detail"&&selO&&<OfficerDetail data={data} officer={selO} oS={oS} toggle={toggleC} addN={addN} togD={togD} setDN={setDN} nav={nav} setModal={setModal}/>}
-        {page==="daily"&&<DailyPage data={data} date={dDate} setDate={setDDate} togD={togD} setDN={setDN} setModal={setModal} delDT={delDT}/>}
-        {page==="tasks"&&<TasksPage data={data} filter={tF} setFilter={setTF} setModal={setModal} toggle={toggleC}/>}
-        {page==="activity"&&<ActivityPage data={data} date={aDate} setDate={setADate} logM={logM} setModal={setModal}/>}
-        {page==="resources"&&<ResourcesPage data={data} filter={rF} setFilter={setRF} setModal={setModal}/>}
-        {page==="messages"&&<MessagesPage data={data} tab={msgTab} setTab={setMsgTab} setModal={setModal}/>}
+        <section id="dashboard"><Dashboard data={data} g={gS} oS={oS} goToOfficer={goToOfficer} dSt={dSt(TODAY)}/></section>
+        <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
+        <section id="officers"><Officers data={data} oS={oS} setModal={setModal} search={search} setSearch={setSearch} expandedId={expandedOfficerId} setExpandedId={setExpandedOfficerId} toggle={toggleC} addN={addN} togD={togD} setDN={setDN}/></section>
+        <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
+        <section id="daily"><DailyPage data={data} date={dDate} setDate={setDDate} togD={togD} setDN={setDN} setModal={setModal} delDT={delDT}/></section>
+        <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
+        <section id="tasks"><TasksPage data={data} filter={tF} setFilter={setTF} setModal={setModal} toggle={toggleC}/></section>
+        <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
+        <section id="activity"><ActivityPage data={data} date={aDate} setDate={setADate} logM={logM} setModal={setModal}/></section>
+        <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
+        <section id="resources"><ResourcesPage data={data} filter={rF} setFilter={setRF} setModal={setModal}/></section>
       </main>
 
       {modal==="add-task"&&<AddTaskModal data={data} onClose={()=>setModal(null)} onSave={addTask}/>}
@@ -175,10 +172,8 @@ export default function App(){
       {modal==="add-officer"&&<OfficerFormModal data={data} onClose={()=>setModal(null)} onSave={addO}/>}
       {modal==="add-daily"&&<AddDailyModal data={data} onClose={()=>setModal(null)} onSave={addDT}/>}
       {modal?.type==="edit-daily"&&<AddDailyModal data={data} task={modal.task} onClose={()=>setModal(null)} onSave={t=>updDT(modal.task.id,t)}/>}
-      {modal==="send-dm"&&<SendDMModal data={data} onClose={()=>setModal(null)} onSend={addMsg}/>}
-      {modal==="send-announcement"&&<SendAnnouncementModal onClose={()=>setModal(null)} onSend={addMsg}/>}
-      {modal?.type==="edit-officer"&&<OfficerFormModal data={data} officer={modal.officer} onClose={()=>setModal(null)} onSave={u=>{updO(modal.officer.id,u);if(selO?.id===modal.officer.id)setSelO({...modal.officer,...u,avatar:mkA(u.name)});}}/>}
-      {modal?.type==="confirm-delete"&&<Confirm msg={`Remove ${modal.officer.name}?`} sub="Removes from all tasks and assignments." onNo={()=>setModal(null)} onOk={()=>{delO(modal.officer.id);setModal(null);if(selO?.id===modal.officer.id)nav("officers");}}/>}
+      {modal?.type==="edit-officer"&&<OfficerFormModal data={data} officer={modal.officer} onClose={()=>setModal(null)} onSave={u=>updO(modal.officer.id,u)}/>}
+      {modal?.type==="confirm-delete"&&<Confirm msg={`Remove ${modal.officer.name}?`} sub="Removes from all tasks and assignments." onNo={()=>setModal(null)} onOk={()=>{delO(modal.officer.id);setModal(null);}}/>}
       {modal?.type==="confirm-delete-daily"&&<Confirm msg={`Delete "${modal.task.title}"?`} sub="All history will be lost." onNo={()=>setModal(null)} onOk={()=>{delDT(modal.task.id);setModal(null);}}/>}
       {modal==="edit-goals"&&<GoalsModal goals={data.goals} onClose={()=>setModal(null)} onSave={saveGoals}/>}
     </div>
@@ -188,7 +183,7 @@ export default function App(){
 // ═══════════════════════════════════════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════════
-function Dashboard({data,g,oS,nav,dSt}){
+function Dashboard({data,g,oS,goToOfficer,dSt}){
   const sorted=[...data.officers].sort((a,b)=>oS(b.id).rate-oS(a.id).rate);
   const upcoming=data.tasks.filter(t=>dU(t.dueDate)>=0&&dU(t.dueDate)<=14).sort((a,b)=>dU(a.dueDate)-dU(b.dueDate));
   return<div>
@@ -199,7 +194,7 @@ function Dashboard({data,g,oS,nav,dSt}){
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
       <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:20}}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}><span style={{color:C.gold}}>{I.trophy}</span><h3 style={{margin:0,fontSize:14,fontWeight:600,color:C.white,fontFamily:"'Space Grotesk',sans-serif"}}>Leaderboard</h3></div>
-        {sorted.map((o,i)=>{const s=oS(o.id);return<div key={o.id} onClick={()=>nav("officer-detail",o)} style={{display:"flex",alignItems:"center",gap:11,padding:"8px 10px",marginBottom:2,borderRadius:7,cursor:"pointer",background:i===0?"rgba(212,168,75,0.05)":"transparent"}} onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.03)"} onMouseLeave={e=>e.currentTarget.style.background=i===0?"rgba(212,168,75,0.05)":"transparent"}>
+        {sorted.map((o,i)=>{const s=oS(o.id);return<div key={o.id} onClick={()=>goToOfficer(o)} style={{display:"flex",alignItems:"center",gap:11,padding:"8px 10px",marginBottom:2,borderRadius:7,cursor:"pointer",background:i===0?"rgba(212,168,75,0.05)":"transparent"}} onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.03)"} onMouseLeave={e=>e.currentTarget.style.background=i===0?"rgba(212,168,75,0.05)":"transparent"}>
           <div style={{width:20,fontSize:12,fontWeight:700,color:i===0?C.gold:C.dim,fontFamily:"'Space Grotesk',sans-serif"}}>#{i+1}</div>
           <div style={{width:32,height:32,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:C.white,background:`linear-gradient(135deg,${i===0?C.gold:C.primary}50,${i===0?"#E07C5A":C.accent}50)`}}>{o.avatar}</div>
           <div style={{flex:1}}><div style={{fontSize:13,fontWeight:500,color:C.white}}>{o.name}</div><div style={{fontSize:10,color:C.muted}}>{s.completed}/{s.total}</div></div>
@@ -215,44 +210,6 @@ function Dashboard({data,g,oS,nav,dSt}){
         </div>;})}
       </div>
     </div>
-  </div>;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// MESSAGES PAGE
-// ═══════════════════════════════════════════════════════════════════════════════
-function MessagesPage({data,tab,setTab,setModal}){
-  const filtered=tab==="all"?data.messages:data.messages.filter(m=>m.type===tab);
-  return<div>
-    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
-      <div><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Space Grotesk',sans-serif"}}>Messages</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>Announcements and direct messages to your team</p></div>
-      <div style={{display:"flex",gap:8}}>
-        <button onClick={()=>setModal("send-announcement")} style={{display:"flex",alignItems:"center",gap:5,background:C.accentDim,border:`1px solid rgba(30,136,199,0.3)`,color:C.accent,padding:"9px 14px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{I.megaphone} Announcement</button>
-        <button onClick={()=>setModal("send-dm")} style={{display:"flex",alignItems:"center",gap:5,background:C.primary,border:"none",color:"#fff",padding:"9px 16px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{I.send} Direct Message</button>
-      </div>
-    </div>
-    <div style={{display:"flex",gap:6,margin:"18px 0 20px"}}>
-      {["all","announcement","dm"].map(t=><button key={t} onClick={()=>setTab(t)} style={{padding:"5px 14px",borderRadius:6,border:"1px solid",fontSize:11.5,cursor:"pointer",fontWeight:500,fontFamily:"inherit",background:tab===t?C.primaryDim:"transparent",borderColor:tab===t?`rgba(45,183,166,0.3)`:C.border,color:tab===t?C.primary:C.muted}}>{t==="all"?"All":t==="announcement"?"Announcements":"Direct Messages"}</button>)}
-    </div>
-    {filtered.length===0&&<p style={{color:C.muted,fontSize:14,marginTop:20}}>No messages yet.</p>}
-    {filtered.map(m=>{
-      const isAnn=m.type==="announcement";
-      const recipients=isAnn?data.officers:m.to.map(id=>data.officers.find(o=>o.id===id)).filter(Boolean);
-      return<div key={m.id} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:"16px 20px",marginBottom:8}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
-          <div style={{width:32,height:32,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:isAnn?C.accentDim:C.primaryDim,color:isAnn?C.accent:C.primary,flexShrink:0}}>{isAnn?I.megaphone:I.send}</div>
-          <div style={{flex:1}}>
-            <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:4,background:isAnn?C.accentDim:C.primaryDim,color:isAnn?C.accent:C.primary,textTransform:"uppercase",fontFamily:"'Space Grotesk',sans-serif"}}>{isAnn?"Announcement":"DM"}</span>
-              {m.title&&<span style={{fontSize:14,fontWeight:600,color:C.white}}>{m.title}</span>}
-              {!isAnn&&recipients.length>0&&<span style={{fontSize:13,fontWeight:500,color:C.white}}>To: {recipients.map(o=>o.name).join(", ")}</span>}
-            </div>
-            <div style={{fontSize:11,color:C.dim,marginTop:2}}>{fD(m.date)} · From {m.from}</div>
-          </div>
-        </div>
-        <p style={{margin:0,fontSize:13,color:C.text,lineHeight:1.6,paddingLeft:42}}>{m.body}</p>
-      </div>;
-    })}
   </div>;
 }
 
@@ -397,29 +354,33 @@ function ActivityPage({data,date,setDate,logM,setModal}){
 // ═══════════════════════════════════════════════════════════════════════════════
 // OFFICERS + DETAIL + TASKS + RESOURCES (same patterns, Milestone branded)
 // ═══════════════════════════════════════════════════════════════════════════════
-function Officers({data,oS,nav,setModal,search,setSearch}){
+function Officers({data,oS,setModal,search,setSearch,expandedId,setExpandedId,toggle,addN,togD,setDN}){
   const f=data.officers.filter(o=>o.name.toLowerCase().includes(search.toLowerCase())||o.team.toLowerCase().includes(search.toLowerCase()));
+  const expandedOfficer=expandedId&&data.officers.find(o=>o.id===expandedId);
   return<div>
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}><div><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Space Grotesk',sans-serif"}}>Loan Officers</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>Manage your Milestone team</p></div><button onClick={()=>setModal("add-officer")} style={{display:"flex",alignItems:"center",gap:5,background:C.primary,border:"none",color:"#fff",padding:"9px 16px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{I.plus} Add Officer</button></div>
     <div style={{position:"relative",margin:"14px 0 18px"}}><span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",color:C.muted}}>{I.search}</span><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search..." style={{...sI,paddingLeft:36,maxWidth:340}}/></div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(290px,1fr))",gap:12}}>
-      {f.map(o=>{const s=oS(o.id);return<div key={o.id} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:20,position:"relative"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.bHover;e.currentTarget.querySelector('.act').style.opacity=1;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.querySelector('.act').style.opacity=0;}}>
+      {f.map(o=>{const s=oS(o.id);const isExpanded=expandedId===o.id;return<div key={o.id} style={{background:C.surface,border:`1px solid ${isExpanded?C.primary:C.border}`,borderRadius:12,padding:20,position:"relative"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=isExpanded?C.primary:C.bHover;e.currentTarget.querySelector('.act').style.opacity=1;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=isExpanded?C.primary:C.border;e.currentTarget.querySelector('.act').style.opacity=0;}}>
         <div className="act" style={{position:"absolute",top:12,right:12,display:"flex",gap:4,opacity:0,transition:"opacity 0.15s"}}><button onClick={()=>setModal({type:"edit-officer",officer:o})} style={{width:28,height:28,borderRadius:6,border:`1px solid ${C.border}`,background:"rgba(255,255,255,0.03)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:C.muted}}>{I.edit}</button><button onClick={()=>setModal({type:"confirm-delete",officer:o})} style={{width:28,height:28,borderRadius:6,border:`1px solid ${C.redDim}`,background:"rgba(224,82,82,0.04)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:C.red}}>{I.trash}</button></div>
-        <div onClick={()=>nav("officer-detail",o)} style={{cursor:"pointer"}}>
+        <div onClick={()=>setExpandedId(isExpanded?null:o.id)} style={{cursor:"pointer"}}>
           <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}><div style={{width:44,height:44,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:C.white,background:`linear-gradient(135deg,${C.primary}40,${C.accent}40)`}}>{o.avatar}</div><div><div style={{fontWeight:600,fontSize:14,color:C.white}}>{o.name}</div><div style={{fontSize:11,color:C.muted}}>{o.team} Team</div></div></div>
           <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}><Ring pct={s.rate} size={42} sw={4}/><div><div style={{fontSize:19,fontWeight:700,color:C.white,fontFamily:"'Space Grotesk',sans-serif"}}>{s.rate}%</div><div style={{fontSize:10,color:C.muted}}>completion</div></div></div>
           <div style={{display:"flex",gap:12,fontSize:11,color:C.muted}}><span><strong style={{color:C.green}}>{s.completed}</strong> done</span><span><strong style={{color:C.white}}>{s.total-s.completed}</strong> left</span>{s.overdue>0&&<span><strong style={{color:C.red}}>{s.overdue}</strong> overdue</span>}</div>
         </div>
       </div>;})}
     </div>
+    {expandedOfficer&&<div style={{marginTop:16,background:C.surface,border:`1px solid ${C.primary}`,borderRadius:12,padding:20}}>
+      <OfficerDetail data={data} officer={expandedOfficer} oS={oS} toggle={toggle} addN={addN} togD={togD} setDN={setDN} setModal={setModal} onClose={()=>setExpandedId(null)}/>
+    </div>}
   </div>;
 }
 
-function OfficerDetail({data,officer,oS,toggle,addN,togD,setDN,nav,setModal}){
+function OfficerDetail({data,officer,oS,toggle,addN,togD,setDN,setModal,onClose}){
   const s=oS(officer.id);const tasks=data.tasks.filter(t=>t.assignedTo.includes(officer.id));const dailies=data.dailyTasks.filter(t=>t.assignedTo.includes(officer.id));
   const[ne,setNe]=useState(null);const[nt,setNt]=useState("");const[dne,setDne]=useState(null);const[dnt,setDnt]=useState("");
   return<div>
-    <button onClick={()=>nav("officers")} style={{background:"none",border:"none",color:C.primary,cursor:"pointer",fontSize:13,marginBottom:12,padding:0,display:"flex",alignItems:"center",gap:4,fontFamily:"inherit"}}>{I.back} All officers</button>
+    <button onClick={onClose} style={{background:"none",border:"none",color:C.primary,cursor:"pointer",fontSize:13,marginBottom:12,padding:0,display:"flex",alignItems:"center",gap:4,fontFamily:"inherit"}}>{I.close} Collapse</button>
     <div style={{display:"flex",alignItems:"center",gap:18,marginBottom:24,flexWrap:"wrap"}}>
       <div style={{width:56,height:56,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:700,color:"#fff",background:`linear-gradient(135deg,${C.primary},${C.accent})`,flexShrink:0}}>{officer.avatar}</div>
       <div style={{flex:1,minWidth:180}}>
@@ -502,11 +463,6 @@ function AddDailyModal({data,task,onClose,onSave}){
   return<Modal title={isE?"Edit Daily Task":"New Daily Task"} onClose={onClose}><div style={{marginBottom:12}}><label style={sL}>Title *</label><input value={f.title} onChange={e=>s("title",e.target.value)} placeholder="e.g. Make 10+ Outbound Calls" style={sI} autoFocus/></div><div style={{marginBottom:12}}><label style={sL}>Description</label><textarea value={f.description} onChange={e=>s("description",e.target.value)} rows={2} style={{...sI,resize:"vertical"}}/></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}><div><label style={sL}>Category</label><select value={f.category} onChange={e=>s("category",e.target.value)} style={sS}>{["Sales","Product Knowledge","Operations","Partnerships","Compliance"].map(c=><option key={c}>{c}</option>)}</select></div><div><label style={sL}>Type</label><div style={{display:"flex",gap:6,marginTop:4}}><button onClick={()=>s("recurring",true)} style={{flex:1,padding:7,borderRadius:6,border:`1px solid ${f.recurring?C.primary:C.border}`,background:f.recurring?C.primaryDim:"transparent",color:f.recurring?C.primary:C.muted,fontSize:11,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:3}}>{I.repeat} Recurring</button><button onClick={()=>s("recurring",false)} style={{flex:1,padding:7,borderRadius:6,border:`1px solid ${!f.recurring?C.gold:C.border}`,background:!f.recurring?C.goldDim:"transparent",color:!f.recurring?C.gold:C.muted,fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>One-off</button></div></div></div><div style={{marginBottom:16}}><label style={sL}>Assign To *</label><div style={{display:"flex",gap:5,flexWrap:"wrap"}}><button onClick={()=>s("assignedTo",f.assignedTo.length===data.officers.length?[]:data.officers.map(o=>o.id))} style={{padding:"4px 9px",borderRadius:5,fontSize:11,cursor:"pointer",border:`1px solid ${C.border}`,background:"rgba(255,255,255,0.02)",color:C.muted,fontFamily:"inherit"}}>{f.assignedTo.length===data.officers.length?"None":"All"}</button>{data.officers.map(o=><button key={o.id} onClick={()=>tgl(o.id)} style={{padding:"4px 10px",borderRadius:5,fontSize:11,cursor:"pointer",fontFamily:"inherit",border:`1px solid ${f.assignedTo.includes(o.id)?C.primary:C.border}`,background:f.assignedTo.includes(o.id)?C.primaryDim:"transparent",color:f.assignedTo.includes(o.id)?C.primary:C.muted}}>{o.name}</button>)}</div></div><button onClick={()=>{if(ok){onSave(f);onClose();}}} style={bP(ok)}>{isE?"Save Changes":"Create Daily Task"}</button></Modal>;
 }
 
-function SendDMModal({data,onClose,onSend}){
-  const[to,setTo]=useState([]);const[body,setBody]=useState("");const tgl=id=>setTo(to.includes(id)?to.filter(x=>x!==id):[...to,id]);const ok=to.length&&body.trim();
-  return<Modal title="Send Direct Message" onClose={onClose}><div style={{marginBottom:12}}><label style={sL}>To *</label><div style={{display:"flex",gap:5,flexWrap:"wrap"}}>{data.officers.map(o=><button key={o.id} onClick={()=>tgl(o.id)} style={{padding:"5px 11px",borderRadius:5,fontSize:11,cursor:"pointer",fontFamily:"inherit",border:`1px solid ${to.includes(o.id)?C.primary:C.border}`,background:to.includes(o.id)?C.primaryDim:"transparent",color:to.includes(o.id)?C.primary:C.muted}}>{o.name}</button>)}</div></div><div style={{marginBottom:16}}><label style={sL}>Message *</label><textarea value={body} onChange={e=>setBody(e.target.value)} rows={4} placeholder="Write your message..." style={{...sI,resize:"vertical"}}/></div><button onClick={()=>{if(ok){onSend({type:"dm",from:"Coach",to,title:"",body:body.trim()});onClose();}}} style={bP(ok)}>Send Message</button></Modal>;
-}
-
 function GoalsModal({goals,onClose,onSave}){
   const[f,setF]=useState({calls:goals.calls,meetings:goals.meetings,applications:goals.applications,preapprovals:goals.preapprovals,closed:goals.closed});
   const s=(k,v)=>setF(p=>({...p,[k]:Math.max(0,Number(v)||0)}));
@@ -517,7 +473,3 @@ function GoalsModal({goals,onClose,onSave}){
   </Modal>;
 }
 
-function SendAnnouncementModal({onClose,onSend}){
-  const[title,setTitle]=useState("");const[body,setBody]=useState("");const ok=title.trim()&&body.trim();
-  return<Modal title="Post Announcement" onClose={onClose}><div style={{marginBottom:12}}><label style={sL}>Title *</label><input value={title} onChange={e=>setTitle(e.target.value)} placeholder="e.g. Rate Sheet Alert" style={sI} autoFocus/></div><div style={{marginBottom:16}}><label style={sL}>Message *</label><textarea value={body} onChange={e=>setBody(e.target.value)} rows={4} placeholder="Your announcement to all officers..." style={{...sI,resize:"vertical"}}/></div><button onClick={()=>{if(ok){onSend({type:"announcement",from:"Coach",to:[],title:title.trim(),body:body.trim()});onClose();}}} style={bP(ok)}>Post Announcement</button></Modal>;
-}
