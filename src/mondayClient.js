@@ -3,41 +3,48 @@
 // personal API token (see .env.example). Because this token is embedded in
 // the browser bundle, this is meant for a small, trusted internal team only —
 // not a public-facing app. See README.md for details.
+//
+// Everything lives on ONE consolidated Monday board ("Coaching x Milestone"),
+// organized into groups (Loan Officers, Coaching Tasks, Daily Tasks,
+// Resources, Messages, Daily Log). Several columns are shared across groups
+// (e.g. "Description" holds a task's description, a daily task's
+// description, a resource's description, AND a message's body — whichever
+// applies for that item's group) to keep the column count sane. The "Daily
+// Log" group holds three different kinds of rows (Task Completion / Daily
+// Check-in / Daily Metric), distinguished by the "Log Type" dropdown.
 
 const API_URL = "https://api.monday.com/v2";
 const TOKEN = import.meta.env.VITE_MONDAY_API_TOKEN;
 
-export const BOARDS = {
-  officers: import.meta.env.VITE_MONDAY_BOARD_OFFICERS,
-  tasks: import.meta.env.VITE_MONDAY_BOARD_TASKS,
-  taskCompletions: import.meta.env.VITE_MONDAY_BOARD_TASK_COMPLETIONS,
-  dailyTasks: import.meta.env.VITE_MONDAY_BOARD_DAILY_TASKS,
-  dailyCheckins: import.meta.env.VITE_MONDAY_BOARD_DAILY_CHECKINS,
-  resources: import.meta.env.VITE_MONDAY_BOARD_RESOURCES,
-  messages: import.meta.env.VITE_MONDAY_BOARD_MESSAGES,
-  metrics: import.meta.env.VITE_MONDAY_BOARD_METRICS,
+export const BOARD = import.meta.env.VITE_MONDAY_BOARD;
+
+// Group ids — created once when the board was set up.
+export const GROUP = {
+  officers: "topics",
+  tasks: "group_mm5b41rs",
+  dailyTasks: "group_mm5bd63",
+  resources: "group_mm5b4xaz",
+  messages: "group_mm5btr8h",
+  dailyLog: "group_mm5br6sj",
 };
 
-// Column ids — created once when the boards were set up. If you rebuild the
-// boards from scratch these will change; update them here to match.
+// Column ids — created once when the board was set up. If you rebuild the
+// board from scratch these will change; update them here to match.
 const COL = {
-  officer: { email: "email_mm4wq2mq", phone: "phone_mm4w3e1c", team: "dropdown_mm4wp6r6" },
-  task: {
-    desc: "long_text_mm4wdft9", category: "dropdown_mm4w5s33", priority: "color_mm4wx1nm",
-    due: "date_mm4wr0gp", resource: "board_relation_mm4wvbzh", assigned: "board_relation_mm4w7mjd",
-  },
-  completion: { officer: "board_relation_mm4wn6vc", task: "board_relation_mm4w5ejz", date: "date_mm4we0jx", notes: "long_text_mm4w63kq" },
-  dailyTask: { desc: "long_text_mm4wj5a5", category: "dropdown_mm4wwmsf", recurring: "boolean_mm4wvhbv", assigned: "board_relation_mm4wsnd2" },
-  checkin: { officer: "board_relation_mm4wvq8k", dailyTask: "board_relation_mm4wcz7g", date: "date_mm4wafqn", notes: "long_text_mm4wkqjd" },
-  resource: { type: "dropdown_mm4w29v6", category: "dropdown_mm4wendj", desc: "long_text_mm4wep10", link: "link_mm4w7bmx" },
-  message: { type: "dropdown_mm4wz3z0", body: "long_text_mm4wtzqt", date: "date_mm4wk56f", recipients: "board_relation_mm4w5hyb" },
-  metric: {
-    officer: "board_relation_mm51sfr", date: "date_mm515a0f", calls: "numeric_mm5154m8", meetings: "numeric_mm51j3tz",
-    applications: "numeric_mm51nn1r", preapprovals: "numeric_mm515vkn", closed: "numeric_mm51q9kw", notes: "long_text_mm51y86",
-  },
+  email: "email_mm5b23d9", phone: "phone_mm5bmzzf", team: "dropdown_mm5bq96g",
+  description: "long_text_mm5bek3k", category: "dropdown_mm5bfwzm", priority: "color_mm5bf2dz",
+  date: "date_mm5bq91b", resourceLink: "board_relation_mm5bqwbg", assignedOfficers: "board_relation_mm5bkqn2",
+  recurring: "boolean_mm5bzke2", type: "dropdown_mm5bdtg6", fileLink: "link_mm5b3ggw",
+  recipients: "board_relation_mm5b10b6", officer: "board_relation_mm5b71hd", relatedItem: "board_relation_mm5bf3ez",
+  logType: "dropdown_mm5bkh8a", calls: "numeric_mm5bf85d", meetings: "numeric_mm5bt4a3",
+  applications: "numeric_mm5bdg33", preapprovals: "numeric_mm5bte7", closed: "numeric_mm5bkvm6",
+  notes: "long_text_mm5bd6ej", goalCalls: "numeric_mm5bwv76", goalMeetings: "numeric_mm5b8w7j",
+  goalApplications: "numeric_mm5bgbs9", goalPreapprovals: "numeric_mm5bfbhp", goalClosed: "numeric_mm5bnr79",
 };
 
+const LOG_TYPE = { completion: "Task Completion", checkin: "Daily Check-in", metric: "Daily Metric" };
 const DEFAULT_TEAMS = ["Purchase", "Refinance", "FHA/VA", "Jumbo", "USDA"];
+const DEFAULT_GOALS = { calls: 5, meetings: 3, applications: 7, preapprovals: 2, closed: 1 };
 
 async function gql(query, variables = {}) {
   const res = await fetch(API_URL, {
@@ -61,229 +68,174 @@ const linkedIds = (cv) => (cv?.linked_item_ids || []).map(String);
 const isChecked = (cv) => cv?.checked === "true" || cv?.checked === true;
 
 const FETCH_ALL_QUERY = `
-query FetchAll($officersBoard:[ID!],$tasksBoard:[ID!],$completionsBoard:[ID!],$dailyTasksBoard:[ID!],$checkinsBoard:[ID!],$resourcesBoard:[ID!],$messagesBoard:[ID!],$metricsBoard:[ID!]) {
-  officers: boards(ids:$officersBoard) { items_page(limit:500) { items { id name created_at column_values {
-    id type
-    ... on EmailValue { email }
-    ... on PhoneValue { phone }
-    ... on DropdownValue { values { label } }
-  } } } }
-  resources: boards(ids:$resourcesBoard) { items_page(limit:500) { items { id name created_at column_values {
-    id type
-    ... on DropdownValue { values { label } }
-    ... on LongTextValue { text }
-    ... on LinkValue { url url_text }
-  } } } }
-  tasks: boards(ids:$tasksBoard) { items_page(limit:500) { items { id name created_at column_values {
-    id type
-    ... on LongTextValue { text }
-    ... on DropdownValue { values { label } }
-    ... on StatusValue { label }
-    ... on DateValue { date }
-    ... on BoardRelationValue { linked_item_ids }
-  } } } }
-  completions: boards(ids:$completionsBoard) { items_page(limit:500) { items { id name column_values {
-    id type
-    ... on BoardRelationValue { linked_item_ids }
-    ... on DateValue { date }
-    ... on LongTextValue { text }
-  } } } }
-  dailyTasks: boards(ids:$dailyTasksBoard) { items_page(limit:500) { items { id name created_at column_values {
-    id type
-    ... on LongTextValue { text }
-    ... on DropdownValue { values { label } }
-    ... on CheckboxValue { checked }
-    ... on BoardRelationValue { linked_item_ids }
-  } } } }
-  checkins: boards(ids:$checkinsBoard) { items_page(limit:500) { items { id name column_values {
-    id type
-    ... on BoardRelationValue { linked_item_ids }
-    ... on DateValue { date }
-    ... on LongTextValue { text }
-  } } } }
-  messages: boards(ids:$messagesBoard) { items_page(limit:500) { items { id name column_values {
-    id type
-    ... on DropdownValue { values { label } }
-    ... on LongTextValue { text }
-    ... on DateValue { date }
-    ... on BoardRelationValue { linked_item_ids }
-  } } } }
-  metrics: boards(ids:$metricsBoard) { columns { id title } items_page(limit:500) { items { id name column_values {
-    id type
-    ... on BoardRelationValue { linked_item_ids }
-    ... on DateValue { date }
-    ... on NumbersValue { number }
-    ... on LongTextValue { text }
-  } } } }
+query FetchAll($board:[ID!]) {
+  boards(ids:$board) { items_page(limit:500) { items { id name created_at group { id }
+    column_values {
+      id type
+      ... on EmailValue { email }
+      ... on PhoneValue { phone }
+      ... on DropdownValue { values { label } }
+      ... on StatusValue { label }
+      ... on DateValue { date }
+      ... on BoardRelationValue { linked_item_ids }
+      ... on CheckboxValue { checked }
+      ... on LinkValue { url url_text }
+      ... on LongTextValue { text }
+      ... on NumbersValue { number }
+    }
+  } } }
 }`;
 
-// Daily/weekly/monthly goal targets are the same for every officer, so
-// rather than hard-coding the 5 "Goal - *" column ids (which would break if
-// the board is ever rebuilt), we look them up by title from the metrics
-// board's own schema, and read their values off a special "TEAM GOALS" item
-// (an item with no Officer/Date set, so it's automatically excluded from the
-// real metrics rows below).
-const GOAL_TITLES = {
-  calls: "Goal - Calls", meetings: "Goal - Meetings", applications: "Goal - Applications",
-  preapprovals: "Goal - Preapprovals", closed: "Goal - Closed",
-};
-const DEFAULT_GOALS = { calls: 5, meetings: 3, applications: 7, preapprovals: 2, closed: 1 };
-
 export async function fetchAllData() {
-  const d = await gql(FETCH_ALL_QUERY, {
-    officersBoard: [BOARDS.officers], tasksBoard: [BOARDS.tasks], completionsBoard: [BOARDS.taskCompletions],
-    dailyTasksBoard: [BOARDS.dailyTasks], checkinsBoard: [BOARDS.dailyCheckins], resourcesBoard: [BOARDS.resources], messagesBoard: [BOARDS.messages],
-    // Falls back to a board we know exists if VITE_MONDAY_BOARD_METRICS isn't
-    // set yet (e.g. right after a deploy, before the env var is added) — a
-    // missing/null ID here would hard-fail the entire query, breaking every
-    // page, not just Activity. The metrics mapping below only keeps rows
-    // that actually have an officer + date, so a mismatched fallback board
-    // just yields an empty metrics list instead of crashing the app.
-    metricsBoard: [BOARDS.metrics || BOARDS.officers],
-  });
+  const d = await gql(FETCH_ALL_QUERY, { board: [BOARD] });
+  const allItems = d.boards[0]?.items_page.items || [];
+  const inGroup = (gid) => allItems.filter((it) => it.group?.id === gid);
 
-  const officers = (d.officers[0]?.items_page.items || []).map((it) => {
+  const officers = inGroup(GROUP.officers).map((it) => {
     const c = colMap(it);
     return {
       id: it.id, name: it.name, avatar: mkA(it.name),
-      email: c[COL.officer.email]?.email || "",
-      phone: c[COL.officer.phone]?.phone || "",
-      team: dropdownLabel(c[COL.officer.team]) || DEFAULT_TEAMS[0],
+      email: c[COL.email]?.email || "",
+      phone: c[COL.phone]?.phone || "",
+      team: dropdownLabel(c[COL.team]) || DEFAULT_TEAMS[0],
       joinedDate: (it.created_at || "").slice(0, 10),
     };
   });
 
-  const resources = (d.resources[0]?.items_page.items || []).map((it) => {
+  const resources = inGroup(GROUP.resources).map((it) => {
     const c = colMap(it);
     return {
       id: it.id, title: it.name,
-      type: (dropdownLabel(c[COL.resource.type]) || "doc").toLowerCase(),
-      category: dropdownLabel(c[COL.resource.category]) || "Sales",
-      description: c[COL.resource.desc]?.text || "",
+      type: (dropdownLabel(c[COL.type]) || "doc").toLowerCase(),
+      category: dropdownLabel(c[COL.category]) || "Sales",
+      description: c[COL.description]?.text || "",
       createdAt: (it.created_at || "").slice(0, 10),
-      url: c[COL.resource.link]?.url || "",
+      url: c[COL.fileLink]?.url || "",
     };
   });
 
-  const tasks = (d.tasks[0]?.items_page.items || []).map((it) => {
+  const tasks = inGroup(GROUP.tasks).map((it) => {
     const c = colMap(it);
     return {
       id: it.id, title: it.name,
-      description: c[COL.task.desc]?.text || "",
-      resourceId: linkedIds(c[COL.task.resource])[0] || "",
-      assignedTo: linkedIds(c[COL.task.assigned]),
-      dueDate: c[COL.task.due]?.date || "",
-      priority: (c[COL.task.priority]?.label || "Medium").toLowerCase(),
-      category: dropdownLabel(c[COL.task.category]) || "Sales",
+      description: c[COL.description]?.text || "",
+      resourceId: linkedIds(c[COL.resourceLink])[0] || "",
+      assignedTo: linkedIds(c[COL.assignedOfficers]),
+      dueDate: c[COL.date]?.date || "",
+      priority: (c[COL.priority]?.label || "Medium").toLowerCase(),
+      category: dropdownLabel(c[COL.category]) || "Sales",
     };
   });
 
-  const completions = {};
-  for (const it of d.completions[0]?.items_page.items || []) {
-    const c = colMap(it);
-    const officerId = linkedIds(c[COL.completion.officer])[0];
-    const taskId = linkedIds(c[COL.completion.task])[0];
-    if (!officerId || !taskId) continue;
-    completions[`${officerId}-${taskId}`] = { completedAt: c[COL.completion.date]?.date || "", notes: c[COL.completion.notes]?.text || "", _id: it.id };
-  }
-
-  const dailyTasks = (d.dailyTasks[0]?.items_page.items || []).map((it) => {
+  const dailyTasks = inGroup(GROUP.dailyTasks).map((it) => {
     const c = colMap(it);
     return {
       id: it.id, title: it.name,
-      description: c[COL.dailyTask.desc]?.text || "",
-      assignedTo: linkedIds(c[COL.dailyTask.assigned]),
-      recurring: isChecked(c[COL.dailyTask.recurring]),
-      category: dropdownLabel(c[COL.dailyTask.category]) || "Sales",
+      description: c[COL.description]?.text || "",
+      assignedTo: linkedIds(c[COL.assignedOfficers]),
+      recurring: isChecked(c[COL.recurring]),
+      category: dropdownLabel(c[COL.category]) || "Sales",
       createdAt: (it.created_at || "").slice(0, 10),
     };
   });
 
-  const dailyCompletions = {};
-  for (const it of d.checkins[0]?.items_page.items || []) {
-    const c = colMap(it);
-    const officerId = linkedIds(c[COL.checkin.officer])[0];
-    const dailyTaskId = linkedIds(c[COL.checkin.dailyTask])[0];
-    const date = c[COL.checkin.date]?.date;
-    if (!officerId || !dailyTaskId || !date) continue;
-    dailyCompletions[`${officerId}-${dailyTaskId}-${date}`] = { done: true, notes: c[COL.checkin.notes]?.text || "", _id: it.id };
-  }
-
-  const messages = (d.messages[0]?.items_page.items || [])
+  const messages = inGroup(GROUP.messages)
     .map((it) => {
       const c = colMap(it);
-      const type = dropdownLabel(c[COL.message.type]) || "announcement";
+      const type = dropdownLabel(c[COL.type]) || "announcement";
       return {
         id: it.id, type, from: "Coach",
-        to: linkedIds(c[COL.message.recipients]),
+        to: linkedIds(c[COL.recipients]),
         title: type === "announcement" ? it.name : "",
-        body: c[COL.message.body]?.text || "",
-        date: c[COL.message.date]?.date || "",
+        body: c[COL.description]?.text || "",
+        date: c[COL.date]?.date || "",
         read: ["coach"],
       };
     })
     .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 
-  const metricItems = d.metrics[0]?.items_page.items || [];
-
-  const metrics = metricItems.map((it) => {
+  // The Daily Log group holds three kinds of rows in one place — split them
+  // out by the Log Type dropdown.
+  const completions = {};
+  const dailyCompletions = {};
+  const metricItems = [];
+  for (const it of inGroup(GROUP.dailyLog)) {
     const c = colMap(it);
-    return {
-      id: it.id,
-      officerId: linkedIds(c[COL.metric.officer])[0] || "",
-      date: c[COL.metric.date]?.date || "",
-      calls: Number(c[COL.metric.calls]?.number || 0),
-      meetings: Number(c[COL.metric.meetings]?.number || 0),
-      applications: Number(c[COL.metric.applications]?.number || 0),
-      preapprovals: Number(c[COL.metric.preapprovals]?.number || 0),
-      closed: Number(c[COL.metric.closed]?.number || 0),
-      notes: c[COL.metric.notes]?.text || "",
-    };
-  }).filter((m) => m.officerId && m.date);
-
-  // Team-wide daily goals — same lookup-by-title approach described above.
-  const metricsCols = d.metrics[0]?.columns || [];
-  const goalColumnIds = {};
-  for (const k of Object.keys(GOAL_TITLES)) {
-    goalColumnIds[k] = metricsCols.find((col) => col.title === GOAL_TITLES[k])?.id || null;
+    const logType = dropdownLabel(c[COL.logType]);
+    if (logType === LOG_TYPE.completion) {
+      const officerId = linkedIds(c[COL.officer])[0];
+      const taskId = linkedIds(c[COL.relatedItem])[0];
+      if (!officerId || !taskId) continue;
+      completions[`${officerId}-${taskId}`] = { completedAt: c[COL.date]?.date || "", notes: c[COL.notes]?.text || "", _id: it.id };
+    } else if (logType === LOG_TYPE.checkin) {
+      const officerId = linkedIds(c[COL.officer])[0];
+      const dailyTaskId = linkedIds(c[COL.relatedItem])[0];
+      const date = c[COL.date]?.date;
+      if (!officerId || !dailyTaskId || !date) continue;
+      dailyCompletions[`${officerId}-${dailyTaskId}-${date}`] = { done: true, notes: c[COL.notes]?.text || "", _id: it.id };
+    } else if (logType === LOG_TYPE.metric) {
+      metricItems.push(it);
+    }
   }
+
+  // The team-wide daily goals live on a single special "TEAM GOALS (do not
+  // delete)" item within the Daily Metric rows, with Officer/Date left blank
+  // so it's automatically excluded from the real metrics list below.
   const teamGoalsItem = metricItems.find((it) => /team goals/i.test(it.name));
   const gc = teamGoalsItem ? colMap(teamGoalsItem) : {};
   const goals = {
     _itemId: teamGoalsItem?.id || null,
-    calls: Number(gc[goalColumnIds.calls]?.number ?? DEFAULT_GOALS.calls),
-    meetings: Number(gc[goalColumnIds.meetings]?.number ?? DEFAULT_GOALS.meetings),
-    applications: Number(gc[goalColumnIds.applications]?.number ?? DEFAULT_GOALS.applications),
-    preapprovals: Number(gc[goalColumnIds.preapprovals]?.number ?? DEFAULT_GOALS.preapprovals),
-    closed: Number(gc[goalColumnIds.closed]?.number ?? DEFAULT_GOALS.closed),
+    calls: Number(gc[COL.goalCalls]?.number ?? DEFAULT_GOALS.calls),
+    meetings: Number(gc[COL.goalMeetings]?.number ?? DEFAULT_GOALS.meetings),
+    applications: Number(gc[COL.goalApplications]?.number ?? DEFAULT_GOALS.applications),
+    preapprovals: Number(gc[COL.goalPreapprovals]?.number ?? DEFAULT_GOALS.preapprovals),
+    closed: Number(gc[COL.goalClosed]?.number ?? DEFAULT_GOALS.closed),
   };
+
+  const metrics = metricItems
+    .filter((it) => it.id !== teamGoalsItem?.id)
+    .map((it) => {
+      const c = colMap(it);
+      return {
+        id: it.id,
+        officerId: linkedIds(c[COL.officer])[0] || "",
+        date: c[COL.date]?.date || "",
+        calls: Number(c[COL.calls]?.number || 0),
+        meetings: Number(c[COL.meetings]?.number || 0),
+        applications: Number(c[COL.applications]?.number || 0),
+        preapprovals: Number(c[COL.preapprovals]?.number || 0),
+        closed: Number(c[COL.closed]?.number || 0),
+        notes: c[COL.notes]?.text || "",
+      };
+    })
+    .filter((m) => m.officerId && m.date);
 
   const teams = Array.from(new Set([...DEFAULT_TEAMS, ...officers.map((o) => o.team)]));
 
-  return { officers, resources, tasks, completions, teams, dailyTasks, dailyCompletions, messages, metrics, goals, goalColumnIds };
+  return { officers, resources, tasks, completions, teams, dailyTasks, dailyCompletions, messages, metrics, goals };
 }
 
 // ─── Mutations ────────────────────────────────────────────────────────────
 
-async function createItem(boardId, name, columnValues, createLabelsIfMissing = false) {
+async function createItem(groupId, name, columnValues, createLabelsIfMissing = false) {
   const data = await gql(
-    `mutation($boardId:ID!,$name:String!,$cv:JSON!,$cl:Boolean){ create_item(board_id:$boardId,item_name:$name,column_values:$cv,create_labels_if_missing:$cl){ id } }`,
-    { boardId, name, cv: JSON.stringify(columnValues), cl: createLabelsIfMissing }
+    `mutation($boardId:ID!,$groupId:String,$name:String!,$cv:JSON!,$cl:Boolean){ create_item(board_id:$boardId,group_id:$groupId,item_name:$name,column_values:$cv,create_labels_if_missing:$cl){ id } }`,
+    { boardId: BOARD, groupId, name, cv: JSON.stringify(columnValues), cl: createLabelsIfMissing }
   );
   return data.create_item.id;
 }
 
-async function updateItem(boardId, itemId, columnValues, createLabelsIfMissing = false) {
+async function updateItem(itemId, columnValues, createLabelsIfMissing = false) {
   await gql(
     `mutation($boardId:ID!,$itemId:ID!,$cv:JSON!,$cl:Boolean){ change_multiple_column_values(board_id:$boardId,item_id:$itemId,column_values:$cv,create_labels_if_missing:$cl){ id } }`,
-    { boardId, itemId, cv: JSON.stringify(columnValues), cl: createLabelsIfMissing }
+    { boardId: BOARD, itemId, cv: JSON.stringify(columnValues), cl: createLabelsIfMissing }
   );
 }
 
-async function renameItem(boardId, itemId, name) {
+async function renameItem(itemId, name) {
   await gql(
     `mutation($boardId:ID!,$itemId:ID!,$name:String!){ change_simple_column_value(board_id:$boardId,item_id:$itemId,column_id:"name",value:$name){ id } }`,
-    { boardId, itemId, name }
+    { boardId: BOARD, itemId, name }
   );
 }
 
@@ -294,77 +246,78 @@ async function deleteItem(itemId) {
 export const monday = {
   async toggleTaskCompletion(officerId, taskId, existingId) {
     if (existingId) { await deleteItem(existingId); return null; }
-    return createItem(BOARDS.taskCompletions, `Completion — ${officerId}-${taskId}`, {
-      [COL.completion.officer]: { item_ids: [Number(officerId)] },
-      [COL.completion.task]: { item_ids: [Number(taskId)] },
-      [COL.completion.date]: { date: new Date().toISOString().slice(0, 10) },
-    });
+    return createItem(GROUP.dailyLog, `Completion — ${officerId}-${taskId}`, {
+      [COL.logType]: { labels: [LOG_TYPE.completion] },
+      [COL.officer]: { item_ids: [Number(officerId)] },
+      [COL.relatedItem]: { item_ids: [Number(taskId)] },
+      [COL.date]: { date: new Date().toISOString().slice(0, 10) },
+    }, true);
   },
   async setTaskCompletionNotes(completionId, notes) {
-    await updateItem(BOARDS.taskCompletions, completionId, { [COL.completion.notes]: notes });
+    await updateItem(completionId, { [COL.notes]: notes });
   },
   async createTask(t) {
-    return createItem(BOARDS.tasks, t.title, {
-      [COL.task.desc]: t.description || "",
-      [COL.task.category]: { labels: [t.category] },
-      [COL.task.priority]: { label: t.priority.charAt(0).toUpperCase() + t.priority.slice(1) },
-      [COL.task.due]: { date: t.dueDate },
-      ...(t.resourceId ? { [COL.task.resource]: { item_ids: [Number(t.resourceId)] } } : {}),
-      [COL.task.assigned]: { item_ids: t.assignedTo.map(Number) },
+    return createItem(GROUP.tasks, t.title, {
+      [COL.description]: t.description || "",
+      [COL.category]: { labels: [t.category] },
+      [COL.priority]: { label: t.priority.charAt(0).toUpperCase() + t.priority.slice(1) },
+      [COL.date]: { date: t.dueDate },
+      ...(t.resourceId ? { [COL.resourceLink]: { item_ids: [Number(t.resourceId)] } } : {}),
+      [COL.assignedOfficers]: { item_ids: t.assignedTo.map(Number) },
     }, true);
   },
   async updateTask(id, t) {
-    await renameItem(BOARDS.tasks, id, t.title);
-    await updateItem(BOARDS.tasks, id, {
-      [COL.task.desc]: t.description || "",
-      [COL.task.category]: { labels: [t.category] },
-      [COL.task.priority]: { label: t.priority.charAt(0).toUpperCase() + t.priority.slice(1) },
-      [COL.task.due]: { date: t.dueDate },
-      [COL.task.resource]: { item_ids: t.resourceId ? [Number(t.resourceId)] : [] },
-      [COL.task.assigned]: { item_ids: t.assignedTo.map(Number) },
+    await renameItem(id, t.title);
+    await updateItem(id, {
+      [COL.description]: t.description || "",
+      [COL.category]: { labels: [t.category] },
+      [COL.priority]: { label: t.priority.charAt(0).toUpperCase() + t.priority.slice(1) },
+      [COL.date]: { date: t.dueDate },
+      [COL.resourceLink]: { item_ids: t.resourceId ? [Number(t.resourceId)] : [] },
+      [COL.assignedOfficers]: { item_ids: t.assignedTo.map(Number) },
     }, true);
   },
   async deleteTask(id) { await deleteItem(id); },
   async createResource(r) {
-    return createItem(BOARDS.resources, r.title, {
-      [COL.resource.type]: { labels: [r.type] },
-      [COL.resource.category]: { labels: [r.category] },
-      [COL.resource.desc]: r.description || "",
-      ...(r.url ? { [COL.resource.link]: { url: r.url, text: r.url } } : {}),
+    return createItem(GROUP.resources, r.title, {
+      [COL.type]: { labels: [r.type] },
+      [COL.category]: { labels: [r.category] },
+      [COL.description]: r.description || "",
+      ...(r.url ? { [COL.fileLink]: { url: r.url, text: r.url } } : {}),
     }, true);
   },
   async createOfficer(o) {
-    return createItem(BOARDS.officers, o.name, {
-      [COL.officer.email]: { email: o.email, text: o.email },
-      [COL.officer.phone]: o.phone || "",
-      [COL.officer.team]: { labels: [o.team] },
+    return createItem(GROUP.officers, o.name, {
+      [COL.email]: { email: o.email, text: o.email },
+      [COL.phone]: o.phone || "",
+      [COL.team]: { labels: [o.team] },
     }, true);
   },
   async updateOfficer(id, u) {
-    await renameItem(BOARDS.officers, id, u.name);
-    await updateItem(BOARDS.officers, id, {
-      [COL.officer.email]: { email: u.email, text: u.email },
-      [COL.officer.phone]: u.phone || "",
-      [COL.officer.team]: { labels: [u.team] },
+    await renameItem(id, u.name);
+    await updateItem(id, {
+      [COL.email]: { email: u.email, text: u.email },
+      [COL.phone]: u.phone || "",
+      [COL.team]: { labels: [u.team] },
     }, true);
   },
   async deleteOfficer(id) { await deleteItem(id); },
   async createDailyTask(t) {
-    return createItem(BOARDS.dailyTasks, t.title, {
-      [COL.dailyTask.desc]: t.description || "",
-      [COL.dailyTask.category]: { labels: [t.category] },
-      [COL.dailyTask.recurring]: { checked: t.recurring ? "true" : "false" },
-      [COL.dailyTask.assigned]: { item_ids: t.assignedTo.map(Number) },
+    return createItem(GROUP.dailyTasks, t.title, {
+      [COL.description]: t.description || "",
+      [COL.category]: { labels: [t.category] },
+      [COL.recurring]: { checked: t.recurring ? "true" : "false" },
+      [COL.assignedOfficers]: { item_ids: t.assignedTo.map(Number) },
     }, true);
   },
   async deleteDailyTask(id) { await deleteItem(id); },
   async updateDailyTask(id, t) {
-    await renameItem(BOARDS.dailyTasks, id, t.title);
-    await updateItem(BOARDS.dailyTasks, id, {
-      [COL.dailyTask.desc]: t.description || "",
-      [COL.dailyTask.category]: { labels: [t.category] },
-      [COL.dailyTask.recurring]: { checked: t.recurring ? "true" : "false" },
-      [COL.dailyTask.assigned]: { item_ids: t.assignedTo.map(Number) },
+    await renameItem(id, t.title);
+    await updateItem(id, {
+      [COL.description]: t.description || "",
+      [COL.category]: { labels: [t.category] },
+      [COL.recurring]: { checked: t.recurring ? "true" : "false" },
+      [COL.assignedOfficers]: { item_ids: t.assignedTo.map(Number) },
     }, true);
   },
   // Adds a newly-created officer to every recurring daily task's assignee
@@ -372,66 +325,71 @@ export const monday = {
   // recurring check-ins without anyone having to edit each task by hand.
   async addOfficerToRecurringDailyTasks(officerId, recurringDailyTasks) {
     await Promise.all(recurringDailyTasks.map(t =>
-      updateItem(BOARDS.dailyTasks, t.id, {
-        [COL.dailyTask.assigned]: { item_ids: [...t.assignedTo.map(Number), Number(officerId)] },
+      updateItem(t.id, {
+        [COL.assignedOfficers]: { item_ids: [...t.assignedTo.map(Number), Number(officerId)] },
       })
     ));
   },
   async toggleDailyCheckin(officerId, dailyTaskId, date, existingId) {
     if (existingId) { await deleteItem(existingId); return null; }
-    return createItem(BOARDS.dailyCheckins, `Checkin — ${officerId}-${dailyTaskId}-${date}`, {
-      [COL.checkin.officer]: { item_ids: [Number(officerId)] },
-      [COL.checkin.dailyTask]: { item_ids: [Number(dailyTaskId)] },
-      [COL.checkin.date]: { date },
-    });
+    return createItem(GROUP.dailyLog, `Checkin — ${officerId}-${dailyTaskId}-${date}`, {
+      [COL.logType]: { labels: [LOG_TYPE.checkin] },
+      [COL.officer]: { item_ids: [Number(officerId)] },
+      [COL.relatedItem]: { item_ids: [Number(dailyTaskId)] },
+      [COL.date]: { date },
+    }, true);
   },
   async setDailyCheckinNotes(checkinId, notes) {
-    await updateItem(BOARDS.dailyCheckins, checkinId, { [COL.checkin.notes]: notes });
+    await updateItem(checkinId, { [COL.notes]: notes });
   },
   async createMessage(m) {
-    return createItem(BOARDS.messages, m.title || (m.type === "dm" ? "Direct message" : "Announcement"), {
-      [COL.message.type]: { labels: [m.type] },
-      [COL.message.body]: m.body,
-      [COL.message.date]: { date: new Date().toISOString().slice(0, 10) },
-      ...(m.to?.length ? { [COL.message.recipients]: { item_ids: m.to.map(Number) } } : {}),
+    return createItem(GROUP.messages, m.title || (m.type === "dm" ? "Direct message" : "Announcement"), {
+      [COL.type]: { labels: [m.type] },
+      [COL.description]: m.body,
+      [COL.date]: { date: new Date().toISOString().slice(0, 10) },
+      ...(m.to?.length ? { [COL.recipients]: { item_ids: m.to.map(Number) } } : {}),
     }, true);
   },
   // Upsert-style: pass existingId if a metrics row already exists for this
   // officer+date (caller looks this up locally), otherwise a new row is made.
   async logMetrics(existingId, officerId, date, m) {
     const cv = {
-      [COL.metric.calls]: Number(m.calls) || 0,
-      [COL.metric.meetings]: Number(m.meetings) || 0,
-      [COL.metric.applications]: Number(m.applications) || 0,
-      [COL.metric.preapprovals]: Number(m.preapprovals) || 0,
-      [COL.metric.closed]: Number(m.closed) || 0,
-      [COL.metric.notes]: m.notes || "",
+      [COL.calls]: Number(m.calls) || 0,
+      [COL.meetings]: Number(m.meetings) || 0,
+      [COL.applications]: Number(m.applications) || 0,
+      [COL.preapprovals]: Number(m.preapprovals) || 0,
+      [COL.closed]: Number(m.closed) || 0,
+      [COL.notes]: m.notes || "",
     };
     if (existingId) {
-      await updateItem(BOARDS.metrics, existingId, cv);
+      await updateItem(existingId, cv);
       return existingId;
     }
-    return createItem(BOARDS.metrics, `Metrics — ${officerId}-${date}`, {
-      [COL.metric.officer]: { item_ids: [Number(officerId)] },
-      [COL.metric.date]: { date },
+    return createItem(GROUP.dailyLog, `Metrics — ${officerId}-${date}`, {
+      [COL.logType]: { labels: [LOG_TYPE.metric] },
+      [COL.officer]: { item_ids: [Number(officerId)] },
+      [COL.date]: { date },
       ...cv,
-    });
+    }, true);
   },
   // Team-wide daily goals, stored as a single special item ("TEAM GOALS (do
-  // not delete)") on the metrics board with no Officer/Date set. Upsert-style
-  // like logMetrics: pass the existing item id if there is one.
-  async updateGoals(itemId, goalColumnIds, goals) {
+  // not delete)") in the Daily Log group. Upsert-style like logMetrics: pass
+  // the existing item id if there is one.
+  async updateGoals(itemId, goals) {
     const cv = {
-      [goalColumnIds.calls]: Number(goals.calls) || 0,
-      [goalColumnIds.meetings]: Number(goals.meetings) || 0,
-      [goalColumnIds.applications]: Number(goals.applications) || 0,
-      [goalColumnIds.preapprovals]: Number(goals.preapprovals) || 0,
-      [goalColumnIds.closed]: Number(goals.closed) || 0,
+      [COL.goalCalls]: Number(goals.calls) || 0,
+      [COL.goalMeetings]: Number(goals.meetings) || 0,
+      [COL.goalApplications]: Number(goals.applications) || 0,
+      [COL.goalPreapprovals]: Number(goals.preapprovals) || 0,
+      [COL.goalClosed]: Number(goals.closed) || 0,
     };
     if (itemId) {
-      await updateItem(BOARDS.metrics, itemId, cv);
+      await updateItem(itemId, cv);
       return itemId;
     }
-    return createItem(BOARDS.metrics, "TEAM GOALS (do not delete)", cv);
+    return createItem(GROUP.dailyLog, "TEAM GOALS (do not delete)", {
+      [COL.logType]: { labels: [LOG_TYPE.metric] },
+      ...cv,
+    }, true);
   },
 };
