@@ -51,6 +51,57 @@ const cC=(c)=>({Sales:C.primary,"Product Knowledge":C.gold,Operations:C.accent,P
 const mkA=(n)=>n.split(" ").map(w=>w[0]).join("").toUpperCase().slice(0,2);
 const shD=(d,n)=>{const x=new Date(d+"T12:00:00");x.setDate(x.getDate()+n);return x.toISOString().split("T")[0];};
 
+// ─── Gamification ────────────────────────────────────────────────────────────
+const POINTS={task:10,daily:5,call:1,meeting:3,application:5,preapproval:8,closed:25};
+const LEVELS=[
+  {min:0,    name:"Rookie",    icon:"🌱"},
+  {min:150,  name:"Contender", icon:"⚡"},
+  {min:400,  name:"Producer",  icon:"🔥"},
+  {min:800,  name:"All-Star",  icon:"⭐"},
+  {min:1500, name:"Champion",  icon:"👑"},
+];
+function levelFor(pts){let l=LEVELS[0];for(const lv of LEVELS)if(pts>=lv.min)l=lv;return l;}
+function levelProgress(pts){
+  const idx=LEVELS.findIndex(l=>l===levelFor(pts));
+  const cur=LEVELS[idx],next=LEVELS[idx+1];
+  if(!next)return{cur,next:null,pct:100};
+  return{cur,next,pct:Math.max(4,Math.round(((pts-cur.min)/(next.min-cur.min))*100))};
+}
+const inRange=(dateStr,startDiff,endDiff)=>{const diff=Math.floor((new Date(TODAY+"T12:00:00")-new Date(dateStr+"T12:00:00"))/864e5);return diff>=startDiff&&diff<endDiff;};
+const P_ALL=()=>true, P_WEEK=d=>inRange(d,0,7), P_LASTWEEK=d=>inRange(d,7,14);
+function officerPoints(data,oid,pred=P_ALL){
+  let pts=0;
+  Object.entries(data.completions).forEach(([k,c])=>{if(k.startsWith(`${oid}-`)&&pred(c.completedAt||TODAY))pts+=POINTS.task;});
+  Object.keys(data.dailyCompletions).forEach(k=>{if(k.startsWith(`${oid}-`)){const parts=k.split("-");if(pred(parts.slice(2).join("-")))pts+=POINTS.daily;}});
+  (data.metrics||[]).forEach(m=>{if(m.officerId===oid&&pred(m.date))pts+=(m.calls||0)*POINTS.call+(m.meetings||0)*POINTS.meeting+(m.applications||0)*POINTS.application+(m.preapprovals||0)*POINTS.preapproval+(m.closed||0)*POINTS.closed;});
+  return pts;
+}
+function officerStats(data,oid){
+  let taskCount=0;Object.keys(data.completions).forEach(k=>{if(k.startsWith(`${oid}-`))taskCount++;});
+  let dailyCount=0;Object.keys(data.dailyCompletions).forEach(k=>{if(k.startsWith(`${oid}-`))dailyCount++;});
+  const m=sumMetrics((data.metrics||[]).filter(x=>x.officerId===oid));
+  return{taskCount,dailyCount,metrics:m};
+}
+function officerStreak(data,oid){
+  const dailyIds=data.dailyTasks.filter(t=>t.assignedTo.includes(oid)).map(t=>t.id);
+  if(!dailyIds.length)return 0;
+  const dayDone=dt=>dailyIds.some(did=>data.dailyCompletions[`${oid}-${did}-${dt}`]);
+  let streak=0,cursor=TODAY;
+  if(!dayDone(cursor))cursor=shD(cursor,-1);
+  while(dayDone(cursor)&&streak<365){streak++;cursor=shD(cursor,-1);}
+  return streak;
+}
+const BADGES=[
+  {id:"first-close",name:"First Close",icon:"🎉",test:s=>s.metrics.closed>=1},
+  {id:"closer-10",name:"Deal Closer",icon:"💰",test:s=>s.metrics.closed>=10},
+  {id:"century-calls",name:"Century Club",icon:"📞",test:s=>s.metrics.calls>=100},
+  {id:"task-master",name:"Task Master",icon:"✅",test:s=>s.taskCount>=25},
+  {id:"daily-grind",name:"Daily Grind",icon:"📋",test:s=>s.dailyCount>=50},
+  {id:"streak-7",name:"7-Day Streak",icon:"🔥",test:(s,streak)=>streak>=7},
+  {id:"streak-30",name:"30-Day Streak",icon:"🚀",test:(s,streak)=>streak>=30},
+];
+function officerBadges(stats,streak){return BADGES.filter(b=>b.test(stats,streak));}
+
 const sI={width:"100%",background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`,borderRadius:6,padding:"9px 11px",color:C.text,fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit"};
 const sS={...sI,padding:"9px 8px",fontSize:12};
 const sL={display:"block",fontSize:10,color:C.muted,marginBottom:4,fontWeight:600,textTransform:"uppercase",letterSpacing:0.8,fontFamily:"'Space Grotesk',sans-serif"};
@@ -182,8 +233,11 @@ export default function App(){
 // DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════════
 function Dashboard({data,g,oS,goToOfficer,dSt}){
-  const sorted=[...data.officers].sort((a,b)=>oS(b.id).rate-oS(a.id).rate);
   const upcoming=data.tasks.filter(t=>dU(t.dueDate)>=0&&dU(t.dueDate)<=14).sort((a,b)=>dU(a.dueDate)-dU(b.dueDate));
+  const board=data.officers.map(o=>({o,weekPts:officerPoints(data,o.id,P_WEEK),lastWeekPts:officerPoints(data,o.id,P_LASTWEEK),allTime:officerPoints(data,o.id,P_ALL),streak:officerStreak(data,o.id)}));
+  const ranked=[...board].sort((a,b)=>b.weekPts-a.weekPts).map((r,i)=>({...r,rank:i+1}));
+  const lastRanks={};[...board].sort((a,b)=>b.lastWeekPts-a.lastWeekPts).forEach((r,i)=>{lastRanks[r.o.id]=i+1;});
+  const podium=ranked.slice(0,3);
   return<div>
     <div style={{marginBottom:24}}><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Space Grotesk',sans-serif"}}>Coaching Dashboard</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>Milestone Mortgage Solutions — Team Progress</p></div>
     <div style={{display:"flex",gap:12,marginBottom:24,flexWrap:"wrap"}}>
@@ -191,13 +245,38 @@ function Dashboard({data,g,oS,goToOfficer,dSt}){
     </div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
       <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:20}}>
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}><span style={{color:C.gold}}>{I.trophy}</span><h3 style={{margin:0,fontSize:14,fontWeight:600,color:C.white,fontFamily:"'Space Grotesk',sans-serif"}}>Leaderboard</h3></div>
-        {sorted.map((o,i)=>{const s=oS(o.id);return<div key={o.id} onClick={()=>goToOfficer(o)} style={{display:"flex",alignItems:"center",gap:11,padding:"8px 10px",marginBottom:2,borderRadius:7,cursor:"pointer",background:i===0?"rgba(212,168,75,0.05)":"transparent"}} onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.03)"} onMouseLeave={e=>e.currentTarget.style.background=i===0?"rgba(212,168,75,0.05)":"transparent"}>
-          <div style={{width:20,fontSize:12,fontWeight:700,color:i===0?C.gold:C.dim,fontFamily:"'Space Grotesk',sans-serif"}}>#{i+1}</div>
-          <div style={{width:32,height:32,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:C.white,background:`linear-gradient(135deg,${i===0?C.gold:C.primary}50,${i===0?"#E07C5A":C.accent}50)`}}>{o.avatar}</div>
-          <div style={{flex:1}}><div style={{fontSize:13,fontWeight:500,color:C.white}}>{o.name}</div><div style={{fontSize:10,color:C.muted}}>{s.completed}/{s.total}</div></div>
-          <Ring pct={s.rate} size={34} sw={3} color={i===0?C.gold:C.primary}/><span style={{fontSize:12,fontWeight:600,color:i===0?C.gold:C.primary,fontFamily:"'Space Grotesk',sans-serif",width:34,textAlign:"right"}}>{s.rate}%</span>
-        </div>;})}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,flexWrap:"wrap",gap:6}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{color:C.gold}}>{I.trophy}</span><h3 style={{margin:0,fontSize:14,fontWeight:600,color:C.white,fontFamily:"'Space Grotesk',sans-serif"}}>Leaderboard</h3></div>
+          <span style={{fontSize:9,color:C.dim,fontFamily:"'Space Grotesk',sans-serif",textTransform:"uppercase",letterSpacing:0.6}}>This Week's Points</span>
+        </div>
+        {podium.length===3&&<div style={{display:"flex",alignItems:"flex-end",gap:6,marginBottom:20,padding:"0 2px"}}>
+          {[podium[1],podium[0],podium[2]].map((r,pi)=>{
+            const h=pi===1?78:pi===0?58:48;
+            const medal=r.rank===1?"🥇":r.rank===2?"🥈":"🥉";
+            return<div key={r.o.id} onClick={()=>goToOfficer(r.o)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",cursor:"pointer"}}>
+              <div style={{fontSize:18,marginBottom:3}}>{medal}</div>
+              <div style={{width:pi===1?42:34,height:pi===1?42:34,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:pi===1?12:10,fontWeight:700,color:"#fff",background:`linear-gradient(135deg,${C.gold},${C.primary})`,marginBottom:5,border:`2px solid ${C.gold}`,flexShrink:0}}>{r.o.avatar}</div>
+              <div style={{fontSize:10,fontWeight:600,color:C.white,textAlign:"center",marginBottom:1,maxWidth:72,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.o.name}</div>
+              <div style={{fontSize:10,color:C.gold,fontWeight:700,fontFamily:"'Space Grotesk',sans-serif",marginBottom:5}}>{r.weekPts} pts</div>
+              <div style={{width:"100%",height:h,background:"rgba(212,168,75,0.08)",borderRadius:"6px 6px 0 0",border:`1px solid rgba(212,168,75,0.25)`,borderBottom:"none"}}/>
+            </div>;
+          })}
+        </div>}
+        {ranked.map(r=>{
+          const lvl=levelFor(r.allTime);
+          const lastRank=lastRanks[r.o.id]||r.rank;
+          const trend=r.rank<lastRank?"up":r.rank>lastRank?"down":"same";
+          return<div key={r.o.id} onClick={()=>goToOfficer(r.o)} style={{display:"flex",alignItems:"center",gap:9,padding:"8px 10px",marginBottom:2,borderRadius:7,cursor:"pointer",background:r.rank===1?"rgba(212,168,75,0.05)":"transparent"}} onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.03)"} onMouseLeave={e=>e.currentTarget.style.background=r.rank===1?"rgba(212,168,75,0.05)":"transparent"}>
+            <div style={{width:16,fontSize:12,fontWeight:700,color:r.rank===1?C.gold:C.dim,fontFamily:"'Space Grotesk',sans-serif"}}>#{r.rank}</div>
+            <span style={{width:11,fontSize:10,color:trend==="up"?C.green:trend==="down"?C.red:C.dim}}>{trend==="up"?"▲":trend==="down"?"▼":"–"}</span>
+            <div style={{width:30,height:30,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:C.white,background:`linear-gradient(135deg,${r.rank===1?C.gold:C.primary}50,${r.rank===1?"#E07C5A":C.accent}50)`,flexShrink:0}}>{r.o.avatar}</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:13,fontWeight:500,color:C.white,display:"flex",alignItems:"center",gap:5}}>{r.o.name}<span style={{fontSize:11}} title={lvl.name}>{lvl.icon}</span></div>
+              <div style={{fontSize:10,color:C.muted,display:"flex",gap:6,alignItems:"center"}}>{r.streak>0&&<span style={{color:C.red}}>🔥{r.streak}</span>}<span>{lvl.name}</span></div>
+            </div>
+            <span style={{fontSize:13,fontWeight:700,color:C.gold,fontFamily:"'Space Grotesk',sans-serif"}}>{r.weekPts}<span style={{fontSize:9,color:C.dim,fontWeight:400}}> pts</span></span>
+          </div>;})}
+        {ranked.length===0&&<p style={{color:C.muted,fontSize:13}}>Add loan officers to start the competition.</p>}
       </div>
       <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:20}}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}><span style={{color:C.primary}}>{I.daily}</span><h3 style={{margin:0,fontSize:14,fontWeight:600,color:C.white,fontFamily:"'Space Grotesk',sans-serif"}}>Upcoming Deadlines</h3></div>
@@ -373,12 +452,23 @@ function Officers({data,oS,setModal,search,setSearch,expandedId,setExpandedId,to
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}><div><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Space Grotesk',sans-serif"}}>Loan Officers</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>Manage your Milestone team</p></div><button onClick={()=>setModal("add-officer")} style={{display:"flex",alignItems:"center",gap:5,background:C.primary,border:"none",color:"#fff",padding:"9px 16px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{I.plus} Add Officer</button></div>
     <div style={{position:"relative",margin:"14px 0 18px"}}><span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",color:C.muted}}>{I.search}</span><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search..." style={{...sI,paddingLeft:36,maxWidth:340}}/></div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(290px,1fr))",gap:12}}>
-      {f.map(o=>{const s=oS(o.id);const isExpanded=expandedId===o.id;return<div key={o.id} style={{background:C.surface,border:`1px solid ${isExpanded?C.primary:C.border}`,borderRadius:12,padding:20,position:"relative"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=isExpanded?C.primary:C.bHover;e.currentTarget.querySelector('.act').style.opacity=1;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=isExpanded?C.primary:C.border;e.currentTarget.querySelector('.act').style.opacity=0;}}>
+      {f.map(o=>{const s=oS(o.id);const isExpanded=expandedId===o.id;const gPts=officerPoints(data,o.id);const lvl=levelFor(gPts);const streak=officerStreak(data,o.id);const badges=officerBadges(officerStats(data,o.id),streak);return<div key={o.id} style={{background:C.surface,border:`1px solid ${isExpanded?C.primary:C.border}`,borderRadius:12,padding:20,position:"relative"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=isExpanded?C.primary:C.bHover;e.currentTarget.querySelector('.act').style.opacity=1;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=isExpanded?C.primary:C.border;e.currentTarget.querySelector('.act').style.opacity=0;}}>
         <div className="act" style={{position:"absolute",top:12,right:12,display:"flex",gap:4,opacity:0,transition:"opacity 0.15s"}}><button onClick={()=>setModal({type:"edit-officer",officer:o})} style={{width:28,height:28,borderRadius:6,border:`1px solid ${C.border}`,background:"rgba(255,255,255,0.03)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:C.muted}}>{I.edit}</button><button onClick={()=>setModal({type:"confirm-delete",officer:o})} style={{width:28,height:28,borderRadius:6,border:`1px solid ${C.redDim}`,background:"rgba(224,82,82,0.04)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:C.red}}>{I.trash}</button></div>
         <div onClick={()=>setExpandedId(isExpanded?null:o.id)} style={{cursor:"pointer"}}>
-          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}><div style={{width:44,height:44,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:C.white,background:`linear-gradient(135deg,${C.primary}40,${C.accent}40)`}}>{o.avatar}</div><div style={{fontWeight:600,fontSize:14,color:C.white}}>{o.name}</div></div>
-          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}><Ring pct={s.rate} size={42} sw={4}/><div><div style={{fontSize:19,fontWeight:700,color:C.white,fontFamily:"'Space Grotesk',sans-serif"}}>{s.rate}%</div><div style={{fontSize:10,color:C.muted}}>completion</div></div></div>
-          <div style={{display:"flex",gap:12,fontSize:11,color:C.muted}}><span><strong style={{color:C.green}}>{s.completed}</strong> done</span><span><strong style={{color:C.white}}>{s.total-s.completed}</strong> left</span>{s.overdue>0&&<span><strong style={{color:C.red}}>{s.overdue}</strong> overdue</span>}</div>
+          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+            <div style={{width:44,height:44,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:C.white,background:`linear-gradient(135deg,${C.primary}40,${C.accent}40)`,position:"relative",flexShrink:0}}>{o.avatar}<span style={{position:"absolute",bottom:-3,right:-3,fontSize:12,background:C.surfaceHi,borderRadius:"50%",width:19,height:19,display:"flex",alignItems:"center",justifyContent:"center",border:`1px solid ${C.border}`}}>{lvl.icon}</span></div>
+            <div>
+              <div style={{fontWeight:600,fontSize:14,color:C.white}}>{o.name}</div>
+              <div style={{display:"flex",alignItems:"center",gap:6,fontSize:10,color:C.gold,fontFamily:"'Space Grotesk',sans-serif",marginTop:1}}><span>{lvl.name}</span>{streak>0&&<span style={{color:C.red}}>🔥{streak}</span>}</div>
+            </div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+            <Ring pct={s.rate} size={42} sw={4}/>
+            <div><div style={{fontSize:19,fontWeight:700,color:C.white,fontFamily:"'Space Grotesk',sans-serif"}}>{s.rate}%</div><div style={{fontSize:10,color:C.muted}}>completion</div></div>
+            <div style={{marginLeft:"auto",textAlign:"right"}}><div style={{fontSize:16,fontWeight:700,color:C.gold,fontFamily:"'Space Grotesk',sans-serif"}}>{gPts}</div><div style={{fontSize:9,color:C.muted}}>points</div></div>
+          </div>
+          <div style={{display:"flex",gap:12,fontSize:11,color:C.muted,marginBottom:badges.length?8:0}}><span><strong style={{color:C.green}}>{s.completed}</strong> done</span><span><strong style={{color:C.white}}>{s.total-s.completed}</strong> left</span>{s.overdue>0&&<span><strong style={{color:C.red}}>{s.overdue}</strong> overdue</span>}</div>
+          {badges.length>0&&<div style={{display:"flex",gap:4,flexWrap:"wrap"}}>{badges.map(b=><span key={b.id} title={b.name} style={{fontSize:13,background:C.surfaceHi,border:`1px solid ${C.border}`,borderRadius:5,width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center"}}>{b.icon}</span>)}</div>}
         </div>
       </div>;})}
     </div>
@@ -390,17 +480,23 @@ function Officers({data,oS,setModal,search,setSearch,expandedId,setExpandedId,to
 
 function OfficerDetail({data,officer,oS,toggle,addN,togD,setDN,setModal,onClose}){
   const s=oS(officer.id);const tasks=data.tasks.filter(t=>t.assignedTo.includes(officer.id));const dailies=data.dailyTasks.filter(t=>t.assignedTo.includes(officer.id));
+  const gPts=officerPoints(data,officer.id);const lvl=levelFor(gPts);const lp=levelProgress(gPts);const streak=officerStreak(data,officer.id);const badges=officerBadges(officerStats(data,officer.id),streak);
   const[ne,setNe]=useState(null);const[nt,setNt]=useState("");const[dne,setDne]=useState(null);const[dnt,setDnt]=useState("");
   return<div>
     <button onClick={onClose} style={{background:"none",border:"none",color:C.primary,cursor:"pointer",fontSize:13,marginBottom:12,padding:0,display:"flex",alignItems:"center",gap:4,fontFamily:"inherit"}}>{I.close} Collapse</button>
-    <div style={{display:"flex",alignItems:"center",gap:18,marginBottom:24,flexWrap:"wrap"}}>
-      <div style={{width:56,height:56,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:700,color:"#fff",background:`linear-gradient(135deg,${C.primary},${C.accent})`,flexShrink:0}}>{officer.avatar}</div>
+    <div style={{display:"flex",alignItems:"center",gap:18,marginBottom:16,flexWrap:"wrap"}}>
+      <div style={{width:56,height:56,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:700,color:"#fff",background:`linear-gradient(135deg,${C.primary},${C.accent})`,flexShrink:0,position:"relative"}}>{officer.avatar}<span style={{position:"absolute",bottom:-3,right:-3,fontSize:15,background:C.surfaceHi,borderRadius:"50%",width:23,height:23,display:"flex",alignItems:"center",justifyContent:"center",border:`1px solid ${C.border}`}}>{lvl.icon}</span></div>
       <div style={{flex:1,minWidth:180}}>
-        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}><h1 style={{fontSize:20,fontWeight:700,color:C.white,margin:0,fontFamily:"'Space Grotesk',sans-serif"}}>{officer.name}</h1><button onClick={()=>setModal({type:"edit-officer",officer})} style={{background:"rgba(255,255,255,0.03)",border:`1px solid ${C.border}`,borderRadius:6,padding:"3px 9px",cursor:"pointer",display:"flex",alignItems:"center",gap:3,color:C.muted,fontSize:11,fontFamily:"inherit"}}>{I.edit} Edit</button></div>
+        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}><h1 style={{fontSize:20,fontWeight:700,color:C.white,margin:0,fontFamily:"'Space Grotesk',sans-serif"}}>{officer.name}</h1><span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:5,background:C.goldDim,color:C.gold,fontFamily:"'Space Grotesk',sans-serif",textTransform:"uppercase",letterSpacing:0.4}}>{lvl.name}</span>{streak>0&&<span style={{fontSize:11,color:C.red,fontWeight:600,display:"flex",alignItems:"center",gap:2}}>🔥{streak}-day streak</span>}<button onClick={()=>setModal({type:"edit-officer",officer})} style={{background:"rgba(255,255,255,0.03)",border:`1px solid ${C.border}`,borderRadius:6,padding:"3px 9px",cursor:"pointer",display:"flex",alignItems:"center",gap:3,color:C.muted,fontSize:11,fontFamily:"inherit"}}>{I.edit} Edit</button></div>
         <div style={{display:"flex",gap:14,marginTop:3,fontSize:12,color:C.muted,flexWrap:"wrap"}}><span style={{display:"flex",alignItems:"center",gap:3}}>{I.mail} {officer.email}</span>{officer.phone&&<span style={{display:"flex",alignItems:"center",gap:3}}>{I.phone} {officer.phone}</span>}</div>
+        {lp.next&&<div style={{marginTop:9,maxWidth:280}}>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:C.dim,marginBottom:3,fontFamily:"'Space Grotesk',sans-serif"}}><span>{lp.cur.name}</span><span>{lp.next.name} at {lp.next.min}pts</span></div>
+          <div style={{height:5,background:"rgba(255,255,255,0.06)",borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${lp.pct}%`,background:`linear-gradient(90deg,${C.gold},${C.primary})`,borderRadius:3}}/></div>
+        </div>}
       </div>
-      <div style={{display:"flex",gap:10}}><Stat label="Progress" value={`${s.rate}%`} accent={C.primary}/><Stat label="Done" value={s.completed} accent={C.green}/><Stat label="Overdue" value={s.overdue} accent={s.overdue>0?C.red:C.green}/></div>
+      <div style={{display:"flex",gap:10,flexWrap:"wrap"}}><Stat label="Points" value={gPts} accent={C.gold}/><Stat label="Progress" value={`${s.rate}%`} accent={C.primary}/><Stat label="Done" value={s.completed} accent={C.green}/><Stat label="Overdue" value={s.overdue} accent={s.overdue>0?C.red:C.green}/></div>
     </div>
+    {badges.length>0&&<div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:20}}>{badges.map(b=><span key={b.id} title={b.name} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,fontWeight:600,color:C.text,background:C.surfaceHi,border:`1px solid ${C.border}`,borderRadius:20,padding:"5px 10px"}}><span style={{fontSize:14}}>{b.icon}</span>{b.name}</span>)}</div>}
     {dailies.length>0&&<><h3 style={{fontSize:14,fontWeight:600,color:C.white,marginBottom:8,fontFamily:"'Space Grotesk',sans-serif",display:"flex",alignItems:"center",gap:6}}>{I.daily} Today's Dailies ({dailies.filter(t=>data.dailyCompletions[`${officer.id}-${t.id}-${TODAY}`]).length}/{dailies.length})</h3>
       {dailies.map(t=>{const k=`${officer.id}-${t.id}-${TODAY}`,comp=data.dailyCompletions[k],done=!!comp;return<div key={t.id} style={{background:C.surface,border:`1px solid ${done?"rgba(76,175,125,0.15)":C.border}`,borderRadius:8,padding:"9px 12px",marginBottom:5}}>
         <div style={{display:"flex",alignItems:"center",gap:9}}><button onClick={()=>togD(officer.id,t.id,TODAY)} style={{width:22,height:22,borderRadius:5,border:`2px solid ${done?C.green:"rgba(255,255,255,0.12)"}`,background:done?C.greenDim:"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:C.green,flexShrink:0}}>{done&&I.check}</button><span style={{fontSize:13,fontWeight:500,color:done?C.muted:C.white,flex:1}}>{t.title}</span><span style={{fontSize:8,fontWeight:700,padding:"2px 6px",borderRadius:3,background:`${cC(t.category)}20`,color:cC(t.category),fontFamily:"'Space Grotesk',sans-serif"}}>{t.category}</span></div>
