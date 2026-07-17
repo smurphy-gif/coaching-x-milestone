@@ -368,16 +368,7 @@ function ActivityPage({data,date,setDate,logM,setModal,dDate,setDDate,togD,setDN
   const pill=(active)=>({padding:"5px 14px",borderRadius:6,border:"1px solid",fontSize:12,cursor:"pointer",fontWeight:600,fontFamily:"inherit",background:active?C.primaryDim:"transparent",borderColor:active?`rgba(45,183,166,0.3)`:C.border,color:active?C.primary:C.muted});
   const isT=date===TODAY;
   const periodMetrics=data.metrics.filter(m=>inPeriod(m.date,period));
-  const team=sumMetrics(periodMetrics);
   const goals=data.goals||{};
-  const periodGoal=key=>PERIOD_WORKDAYS[period]?(goals[key]||0)*PERIOD_WORKDAYS[period]:null;
-  const ratios=[
-    {label:"Calls → Meetings",pct:pctOf(team.meetings,team.calls)},
-    {label:"Meetings → Apps",pct:pctOf(team.applications,team.meetings)},
-    {label:"Apps → Preapprovals",pct:pctOf(team.preapprovals,team.applications)},
-    {label:"Preapprovals → Closed",pct:pctOf(team.closed,team.preapprovals)},
-    {label:"Calls → Closed (overall)",pct:pctOf(team.closed,team.calls)},
-  ];
   return<div>
     <div style={{marginBottom:6}}><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Space Grotesk',sans-serif"}}>Activity</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>Calls, meetings, applications, preapprovals & closed loans — plus daily &amp; one-time tasks, tracked together</p></div>
 
@@ -402,16 +393,6 @@ function ActivityPage({data,date,setDate,logM,setModal,dDate,setDDate,togD,setDN
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,flexWrap:"wrap",gap:8}}>
       <h3 style={{fontSize:13,fontWeight:600,color:C.white,margin:0,fontFamily:"'Space Grotesk',sans-serif"}}>Conversion Summary</h3>
       <div style={{display:"flex",gap:6}}>{[{k:"week",l:"This Week"},{k:"month",l:"This Month"},{k:"all",l:"All Time"}].map(p=><button key={p.k} onClick={()=>setPeriod(p.k)} style={{padding:"5px 12px",borderRadius:6,border:"1px solid",fontSize:11,cursor:"pointer",fontWeight:500,fontFamily:"inherit",background:period===p.k?C.primaryDim:"transparent",borderColor:period===p.k?`rgba(45,183,166,0.3)`:C.border,color:period===p.k?C.primary:C.muted}}>{p.l}</button>)}</div>
-    </div>
-
-    <div style={{display:"flex",gap:12,marginBottom:16,flexWrap:"wrap"}}>
-      {[{key:"calls",label:"Calls",accent:undefined},{key:"meetings",label:"Meetings",accent:C.accent},{key:"applications",label:"Applications",accent:C.gold},{key:"preapprovals",label:"Preapprovals",accent:C.primary},{key:"closed",label:"Closed Loans",accent:C.green}].map(({key,label,accent})=>{
-        const g=periodGoal(key);
-        return<Stat key={key} label={label} value={team[key]} accent={accent} sub={g!=null?(team[key]>=g?`Goal: ${g} — hit`:`Goal: ${g}`):undefined}/>;
-      })}
-    </div>
-    <div style={{display:"flex",gap:12,marginBottom:24,flexWrap:"wrap"}}>
-      {ratios.map(r=><Stat key={r.label} label={r.label} value={`${r.pct}%`} accent={r.pct>=50?C.green:r.pct>=25?C.gold:C.muted}/>)}
     </div>
 
     <h3 style={{fontSize:13,fontWeight:600,color:C.white,margin:"0 0 10px",fontFamily:"'Space Grotesk',sans-serif"}}>By Officer</h3>
