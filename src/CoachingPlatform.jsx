@@ -99,6 +99,7 @@ export default function App(){
   async function delDT(did){try{await monday.deleteDailyTask(did);setData(p=>{const dc={...p.dailyCompletions};Object.keys(dc).forEach(k=>{if(k.includes(`-${did}-`))delete dc[k];});return{...p,dailyTasks:p.dailyTasks.filter(t=>t.id!==did),dailyCompletions:dc};});}catch(e){console.error("delDT failed",e);}}
   async function addMsg(m){try{const id=await monday.createMessage(m);setData(p=>({...p,messages:[{...m,id,date:TODAY,read:["coach"]},...p.messages]}));}catch(e){console.error("addMsg failed",e);}}
   async function logM(oid,dt,patch){const existing=data.metrics.find(m=>m.officerId===oid&&m.date===dt);try{const id=await monday.logMetrics(existing?.id,oid,dt,patch);setData(p=>({...p,metrics:existing?p.metrics.map(m=>m.id===existing.id?{...m,...patch,id}:m):[...p.metrics,{...patch,id,officerId:oid,date:dt}]}));}catch(e){console.error("logM failed",e);}}
+  async function saveGoals(g){try{const id=await monday.updateGoals(data.goals._itemId,data.goalColumnIds,g);setData(p=>({...p,goals:{...g,_itemId:id}}));}catch(e){console.error("saveGoals failed",e);}}
 
   if(loadError)return<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:C.bg,color:C.text,fontFamily:"'DM Sans',sans-serif",flexDirection:"column",gap:10,padding:24,textAlign:"center"}}><p style={{color:C.red,fontWeight:600}}>Couldn't load data from Monday.com</p><p style={{opacity:0.6,fontSize:12,maxWidth:420}}>{loadError}</p><p style={{opacity:0.5,fontSize:12}}>Check your .env file has a valid VITE_MONDAY_API_TOKEN and board IDs, then refresh.</p></div>;
   if(!loaded||!data)return<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:C.bg,color:C.text,fontFamily:"'DM Sans',sans-serif"}}><p style={{opacity:0.6}}>Loading from Monday...</p></div>;
@@ -162,7 +163,7 @@ export default function App(){
         {page==="officer-detail"&&selO&&<OfficerDetail data={data} officer={selO} oS={oS} toggle={toggleC} addN={addN} togD={togD} setDN={setDN} nav={nav} setModal={setModal}/>}
         {page==="daily"&&<DailyPage data={data} date={dDate} setDate={setDDate} togD={togD} setDN={setDN} setModal={setModal} delDT={delDT}/>}
         {page==="tasks"&&<TasksPage data={data} filter={tF} setFilter={setTF} setModal={setModal} toggle={toggleC}/>}
-        {page==="activity"&&<ActivityPage data={data} date={aDate} setDate={setADate} logM={logM}/>}
+        {page==="activity"&&<ActivityPage data={data} date={aDate} setDate={setADate} logM={logM} setModal={setModal}/>}
         {page==="resources"&&<ResourcesPage data={data} filter={rF} setFilter={setRF} setModal={setModal}/>}
         {page==="messages"&&<MessagesPage data={data} tab={msgTab} setTab={setMsgTab} setModal={setModal}/>}
       </main>
@@ -179,6 +180,7 @@ export default function App(){
       {modal?.type==="edit-officer"&&<OfficerFormModal data={data} officer={modal.officer} onClose={()=>setModal(null)} onSave={u=>{updO(modal.officer.id,u);if(selO?.id===modal.officer.id)setSelO({...modal.officer,...u,avatar:mkA(u.name)});}}/>}
       {modal?.type==="confirm-delete"&&<Confirm msg={`Remove ${modal.officer.name}?`} sub="Removes from all tasks and assignments." onNo={()=>setModal(null)} onOk={()=>{delO(modal.officer.id);setModal(null);if(selO?.id===modal.officer.id)nav("officers");}}/>}
       {modal?.type==="confirm-delete-daily"&&<Confirm msg={`Delete "${modal.task.title}"?`} sub="All history will be lost." onNo={()=>setModal(null)} onOk={()=>{delDT(modal.task.id);setModal(null);}}/>}
+      {modal==="edit-goals"&&<GoalsModal goals={data.goals} onClose={()=>setModal(null)} onSave={saveGoals}/>}
     </div>
   );
 }
@@ -306,27 +308,34 @@ const inPeriod=(dateStr,period)=>{
   return true;
 };
 function sumMetrics(list){return list.reduce((s,m)=>({calls:s.calls+m.calls,meetings:s.meetings+m.meetings,applications:s.applications+m.applications,preapprovals:s.preapprovals+m.preapprovals,closed:s.closed+m.closed}),{calls:0,meetings:0,applications:0,preapprovals:0,closed:0});}
+// Daily goals are set once (team-wide, same for every officer). Week/Month
+// summary goals are the daily goal × a workday count — an assumption we made
+// since goals were only ever entered as a daily number.
+const PERIOD_WORKDAYS={week:5,month:20,all:null};
 
-function MetricRow({officer,metric,date,logM}){
+function MetricRow({officer,metric,date,logM,goals}){
   const[f,setF]=useState({calls:metric?.calls||0,meetings:metric?.meetings||0,applications:metric?.applications||0,preapprovals:metric?.preapprovals||0,closed:metric?.closed||0,notes:metric?.notes||""});
   const[dirty,setDirty]=useState(false);
   const s=(k,v)=>{setF(p=>({...p,[k]:v}));setDirty(true);};
   const save=()=>{logM(officer.id,date,f);setDirty(false);};
-  const numStyle={...sS,width:56,textAlign:"center",padding:"7px 4px"};
   return<div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 10px",borderRadius:7,background:dirty?"rgba(212,168,75,0.04)":"transparent",border:`1px solid ${dirty?"rgba(212,168,75,0.15)":"rgba(255,255,255,0.03)"}`,marginBottom:2,flexWrap:"wrap"}}>
     <div style={{width:26,height:26,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:C.white,background:`linear-gradient(135deg,${C.primary}30,${C.accent}30)`,flexShrink:0}}>{officer.avatar}</div>
     <span style={{fontSize:12,color:C.white,fontWeight:500,minWidth:100}}>{officer.name}</span>
-    {FUNNEL_FIELDS.map(ff=><div key={ff.key} style={{textAlign:"center"}}><input type="number" min="0" value={f[ff.key]} onChange={e=>s(ff.key,Math.max(0,Number(e.target.value)||0))} style={numStyle}/></div>)}
+    {FUNNEL_FIELDS.map(ff=>{const goal=goals?.[ff.key]??0;const hit=f[ff.key]>=goal;return<div key={ff.key} style={{width:56,textAlign:"center"}}>
+      <input type="number" min="0" value={f[ff.key]} onChange={e=>s(ff.key,Math.max(0,Number(e.target.value)||0))} style={{...sS,width:56,textAlign:"center",padding:"7px 4px",borderColor:hit?"rgba(76,175,125,0.4)":C.border,background:hit?"rgba(76,175,125,0.06)":sS.background,color:hit?C.green:C.text}}/>
+    </div>;})}
     <input value={f.notes} onChange={e=>s("notes",e.target.value)} placeholder="Names / notes of people called..." style={{...sI,flex:1,minWidth:160,padding:"7px 9px",fontSize:12}}/>
     {dirty&&<button onClick={save} style={{background:C.primary,border:"none",color:"#fff",fontSize:11,fontWeight:600,padding:"6px 12px",borderRadius:6,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>Save</button>}
   </div>;
 }
 
-function ActivityPage({data,date,setDate,logM}){
+function ActivityPage({data,date,setDate,logM,setModal}){
   const[period,setPeriod]=useState("week");
   const isT=date===TODAY;
   const periodMetrics=data.metrics.filter(m=>inPeriod(m.date,period));
   const team=sumMetrics(periodMetrics);
+  const goals=data.goals||{};
+  const periodGoal=key=>PERIOD_WORKDAYS[period]?(goals[key]||0)*PERIOD_WORKDAYS[period]:null;
   const ratios=[
     {label:"Calls → Meetings",pct:pctOf(team.meetings,team.calls)},
     {label:"Meetings → Apps",pct:pctOf(team.applications,team.meetings)},
@@ -337,7 +346,10 @@ function ActivityPage({data,date,setDate,logM}){
   return<div>
     <div style={{marginBottom:6}}><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Space Grotesk',sans-serif"}}>Activity</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>Calls, meetings, applications, preapprovals & closed loans — daily log and conversion ratios</p></div>
 
-    <h3 style={{fontSize:13,fontWeight:600,color:C.white,margin:"20px 0 8px",fontFamily:"'Space Grotesk',sans-serif"}}>Log for the day</h3>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",margin:"20px 0 8px",flexWrap:"wrap",gap:8}}>
+      <h3 style={{fontSize:13,fontWeight:600,color:C.white,margin:0,fontFamily:"'Space Grotesk',sans-serif"}}>Log for the day</h3>
+      <button onClick={()=>setModal("edit-goals")} style={{display:"flex",alignItems:"center",gap:5,background:"rgba(255,255,255,0.03)",border:`1px solid ${C.border}`,color:C.muted,padding:"6px 12px",borderRadius:7,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{I.edit} Edit Goals</button>
+    </div>
     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:"9px 14px",width:"fit-content"}}>
       <button onClick={()=>setDate(shD(date,-1))} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",padding:2,display:"flex"}}>{I.chevL}</button>
       <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{color:C.primary}}>{I.cal}</span><span style={{fontSize:14,fontWeight:600,color:C.white,minWidth:150}}>{fS(date)}</span>{isT&&<span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:4,background:C.primaryDim,color:C.primary,fontFamily:"'Space Grotesk',sans-serif"}}>TODAY</span>}</div>
@@ -346,10 +358,10 @@ function ActivityPage({data,date,setDate,logM}){
     </div>
     <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:"12px 14px",marginBottom:28}}>
       <div style={{display:"flex",gap:8,padding:"0 10px 6px",fontSize:9,color:C.dim,textTransform:"uppercase",letterSpacing:0.6,fontFamily:"'Space Grotesk',sans-serif"}}>
-        <div style={{width:26}}/><div style={{minWidth:100}}>Officer</div>{FUNNEL_FIELDS.map(ff=><div key={ff.key} style={{width:56,textAlign:"center"}}>{ff.label}</div>)}<div style={{flex:1,minWidth:160}}>Notes</div>
+        <div style={{width:26}}/><div style={{minWidth:100}}>Officer</div>{FUNNEL_FIELDS.map(ff=><div key={ff.key} style={{width:56,textAlign:"center"}}>{ff.label}<div style={{fontSize:9,color:C.dim,textTransform:"none",fontWeight:400,marginTop:1}}>Goal {goals[ff.key]??"–"}</div></div>)}<div style={{flex:1,minWidth:160}}>Notes</div>
       </div>
       {data.officers.length===0&&<p style={{color:C.muted,fontSize:13,padding:"6px 10px"}}>Add loan officers to start tracking activity.</p>}
-      {data.officers.map(o=>{const metric=data.metrics.find(m=>m.officerId===o.id&&m.date===date);return<MetricRow key={`${o.id}-${date}`} officer={o} metric={metric} date={date} logM={logM}/>;})}
+      {data.officers.map(o=>{const metric=data.metrics.find(m=>m.officerId===o.id&&m.date===date);return<MetricRow key={`${o.id}-${date}`} officer={o} metric={metric} date={date} logM={logM} goals={goals}/>;})}
     </div>
 
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,flexWrap:"wrap",gap:8}}>
@@ -358,7 +370,10 @@ function ActivityPage({data,date,setDate,logM}){
     </div>
 
     <div style={{display:"flex",gap:12,marginBottom:16,flexWrap:"wrap"}}>
-      <Stat label="Calls" value={team.calls}/><Stat label="Meetings" value={team.meetings} accent={C.accent}/><Stat label="Applications" value={team.applications} accent={C.gold}/><Stat label="Preapprovals" value={team.preapprovals} accent={C.primary}/><Stat label="Closed Loans" value={team.closed} accent={C.green}/>
+      {[{key:"calls",label:"Calls",accent:undefined},{key:"meetings",label:"Meetings",accent:C.accent},{key:"applications",label:"Applications",accent:C.gold},{key:"preapprovals",label:"Preapprovals",accent:C.primary},{key:"closed",label:"Closed Loans",accent:C.green}].map(({key,label,accent})=>{
+        const g=periodGoal(key);
+        return<Stat key={key} label={label} value={team[key]} accent={accent} sub={g!=null?(team[key]>=g?`Goal: ${g} — hit`:`Goal: ${g}`):undefined}/>;
+      })}
     </div>
     <div style={{display:"flex",gap:12,marginBottom:24,flexWrap:"wrap"}}>
       {ratios.map(r=><Stat key={r.label} label={r.label} value={`${r.pct}%`} accent={r.pct>=50?C.green:r.pct>=25?C.gold:C.muted}/>)}
@@ -490,6 +505,16 @@ function AddDailyModal({data,task,onClose,onSave}){
 function SendDMModal({data,onClose,onSend}){
   const[to,setTo]=useState([]);const[body,setBody]=useState("");const tgl=id=>setTo(to.includes(id)?to.filter(x=>x!==id):[...to,id]);const ok=to.length&&body.trim();
   return<Modal title="Send Direct Message" onClose={onClose}><div style={{marginBottom:12}}><label style={sL}>To *</label><div style={{display:"flex",gap:5,flexWrap:"wrap"}}>{data.officers.map(o=><button key={o.id} onClick={()=>tgl(o.id)} style={{padding:"5px 11px",borderRadius:5,fontSize:11,cursor:"pointer",fontFamily:"inherit",border:`1px solid ${to.includes(o.id)?C.primary:C.border}`,background:to.includes(o.id)?C.primaryDim:"transparent",color:to.includes(o.id)?C.primary:C.muted}}>{o.name}</button>)}</div></div><div style={{marginBottom:16}}><label style={sL}>Message *</label><textarea value={body} onChange={e=>setBody(e.target.value)} rows={4} placeholder="Write your message..." style={{...sI,resize:"vertical"}}/></div><button onClick={()=>{if(ok){onSend({type:"dm",from:"Coach",to,title:"",body:body.trim()});onClose();}}} style={bP(ok)}>Send Message</button></Modal>;
+}
+
+function GoalsModal({goals,onClose,onSave}){
+  const[f,setF]=useState({calls:goals.calls,meetings:goals.meetings,applications:goals.applications,preapprovals:goals.preapprovals,closed:goals.closed});
+  const s=(k,v)=>setF(p=>({...p,[k]:Math.max(0,Number(v)||0)}));
+  return<Modal title="Edit Daily Goals" onClose={onClose} width={420}>
+    <p style={{margin:"0 0 16px",fontSize:12,color:C.muted,lineHeight:1.5}}>Same daily target for every loan officer. Week/Month goals shown in Activity are this number × 5 workdays (week) or × 20 workdays (month).</p>
+    {FUNNEL_FIELDS.map(ff=><div key={ff.key} style={{marginBottom:12}}><label style={sL}>{ff.label}</label><input type="number" min="0" value={f[ff.key]} onChange={e=>s(ff.key,e.target.value)} style={sI}/></div>)}
+    <button onClick={()=>{onSave(f);onClose();}} style={bP(true)}>Save Goals</button>
+  </Modal>;
 }
 
 function SendAnnouncementModal({onClose,onSend}){

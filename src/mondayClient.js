@@ -108,7 +108,7 @@ query FetchAll($officersBoard:[ID!],$tasksBoard:[ID!],$completionsBoard:[ID!],$d
     ... on DateValue { date }
     ... on BoardRelationValue { linked_item_ids }
   } } } }
-  metrics: boards(ids:$metricsBoard) { items_page(limit:500) { items { id name column_values {
+  metrics: boards(ids:$metricsBoard) { columns { id title } items_page(limit:500) { items { id name column_values {
     id type
     ... on BoardRelationValue { linked_item_ids }
     ... on DateValue { date }
@@ -116,6 +116,18 @@ query FetchAll($officersBoard:[ID!],$tasksBoard:[ID!],$completionsBoard:[ID!],$d
     ... on LongTextValue { text }
   } } } }
 }`;
+
+// Daily/weekly/monthly goal targets are the same for every officer, so
+// rather than hard-coding the 5 "Goal - *" column ids (which would break if
+// the board is ever rebuilt), we look them up by title from the metrics
+// board's own schema, and read their values off a special "TEAM GOALS" item
+// (an item with no Officer/Date set, so it's automatically excluded from the
+// real metrics rows below).
+const GOAL_TITLES = {
+  calls: "Goal - Calls", meetings: "Goal - Meetings", applications: "Goal - Applications",
+  preapprovals: "Goal - Preapprovals", closed: "Goal - Closed",
+};
+const DEFAULT_GOALS = { calls: 5, meetings: 3, applications: 7, preapprovals: 2, closed: 1 };
 
 export async function fetchAllData() {
   const d = await gql(FETCH_ALL_QUERY, {
@@ -212,7 +224,9 @@ export async function fetchAllData() {
     })
     .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 
-  const metrics = (d.metrics[0]?.items_page.items || []).map((it) => {
+  const metricItems = d.metrics[0]?.items_page.items || [];
+
+  const metrics = metricItems.map((it) => {
     const c = colMap(it);
     return {
       id: it.id,
@@ -227,9 +241,26 @@ export async function fetchAllData() {
     };
   }).filter((m) => m.officerId && m.date);
 
+  // Team-wide daily goals — same lookup-by-title approach described above.
+  const metricsCols = d.metrics[0]?.columns || [];
+  const goalColumnIds = {};
+  for (const k of Object.keys(GOAL_TITLES)) {
+    goalColumnIds[k] = metricsCols.find((col) => col.title === GOAL_TITLES[k])?.id || null;
+  }
+  const teamGoalsItem = metricItems.find((it) => /team goals/i.test(it.name));
+  const gc = teamGoalsItem ? colMap(teamGoalsItem) : {};
+  const goals = {
+    _itemId: teamGoalsItem?.id || null,
+    calls: Number(gc[goalColumnIds.calls]?.number ?? DEFAULT_GOALS.calls),
+    meetings: Number(gc[goalColumnIds.meetings]?.number ?? DEFAULT_GOALS.meetings),
+    applications: Number(gc[goalColumnIds.applications]?.number ?? DEFAULT_GOALS.applications),
+    preapprovals: Number(gc[goalColumnIds.preapprovals]?.number ?? DEFAULT_GOALS.preapprovals),
+    closed: Number(gc[goalColumnIds.closed]?.number ?? DEFAULT_GOALS.closed),
+  };
+
   const teams = Array.from(new Set([...DEFAULT_TEAMS, ...officers.map((o) => o.team)]));
 
-  return { officers, resources, tasks, completions, teams, dailyTasks, dailyCompletions, messages, metrics };
+  return { officers, resources, tasks, completions, teams, dailyTasks, dailyCompletions, messages, metrics, goals, goalColumnIds };
 }
 
 // ─── Mutations ────────────────────────────────────────────────────────────
@@ -385,5 +416,22 @@ export const monday = {
       [COL.metric.date]: { date },
       ...cv,
     });
+  },
+  // Team-wide daily goals, stored as a single special item ("TEAM GOALS (do
+  // not delete)") on the metrics board with no Officer/Date set. Upsert-style
+  // like logMetrics: pass the existing item id if there is one.
+  async updateGoals(itemId, goalColumnIds, goals) {
+    const cv = {
+      [goalColumnIds.calls]: Number(goals.calls) || 0,
+      [goalColumnIds.meetings]: Number(goals.meetings) || 0,
+      [goalColumnIds.applications]: Number(goals.applications) || 0,
+      [goalColumnIds.preapprovals]: Number(goals.preapprovals) || 0,
+      [goalColumnIds.closed]: Number(goals.closed) || 0,
+    };
+    if (itemId) {
+      await updateItem(BOARDS.metrics, itemId, cv);
+      return itemId;
+    }
+    return createItem(BOARDS.metrics, "TEAM GOALS (do not delete)", cv);
   },
 };
