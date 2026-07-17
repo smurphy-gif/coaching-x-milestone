@@ -5,12 +5,12 @@ const TODAY = new Date().toISOString().slice(0, 10);
 
 // ─── Milestone Mortgage Solutions Brand ──────────────────────────────────────
 const C = {
-  bg: "#0C1B2A", surface: "#112236", surfaceHi: "#162C45", border: "rgba(255,255,255,0.07)",
-  bHover: "rgba(45,183,166,0.35)", primary: "#2DB7A6", primaryDim: "rgba(45,183,166,0.12)",
-  primaryText: "#2DB7A6", accent: "#1E88C7", accentDim: "rgba(30,136,199,0.12)",
-  gold: "#D4A84B", goldDim: "rgba(212,168,75,0.12)", red: "#E05252", redDim: "rgba(224,82,82,0.12)",
-  green: "#4CAF7D", greenDim: "rgba(76,175,125,0.12)", text: "#E2E8F0", muted: "#7B8FA3",
-  dim: "#4A5F75", white: "#F1F5F9",
+  bg: "#16293D", surface: "#1D3450", surfaceHi: "#264260", border: "rgba(255,255,255,0.13)",
+  bHover: "rgba(61,207,188,0.45)", primary: "#3DCFBC", primaryDim: "rgba(61,207,188,0.16)",
+  primaryText: "#3DCFBC", accent: "#42A5E8", accentDim: "rgba(66,165,232,0.16)",
+  gold: "#E8C266", goldDim: "rgba(232,194,102,0.16)", red: "#F16E6E", redDim: "rgba(241,110,110,0.16)",
+  green: "#5FCB96", greenDim: "rgba(95,203,150,0.16)", text: "#F2F5F9", muted: "#A7BAD0",
+  dim: "#7690A8", white: "#FFFFFF",
 };
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
