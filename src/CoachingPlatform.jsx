@@ -87,6 +87,8 @@ export default function App(){
   async function updT(id,t){try{await monday.updateTask(id,t);setData(p=>({...p,tasks:p.tasks.map(x=>x.id===id?{...t,id}:x)}));}catch(e){console.error("updT failed",e);}}
   async function delTask(id){try{await monday.deleteTask(id);setData(p=>{const c={...p.completions};Object.keys(c).forEach(k=>{if(k.endsWith(`-${id}`))delete c[k];});return{...p,tasks:p.tasks.filter(t=>t.id!==id),completions:c};});}catch(e){console.error("delTask failed",e);}}
   async function addRes(r){try{const id=await monday.createResource(r);setData(p=>({...p,resources:[...p.resources,{title:r.title,description:r.description,type:r.type,category:r.category,url:r.url||"",id,createdAt:TODAY}]}));}catch(e){console.error("addRes failed",e);}}
+  async function updRes(id,r){try{await monday.updateResource(id,r);setData(p=>({...p,resources:p.resources.map(x=>x.id===id?{...x,title:r.title,description:r.description,type:r.type,category:r.category,url:r.url||""}:x)}));}catch(e){console.error("updRes failed",e);}}
+  async function delRes(id){try{await monday.deleteResource(id);setData(p=>({...p,resources:p.resources.filter(r=>r.id!==id),tasks:p.tasks.map(t=>t.resourceId===id?{...t,resourceId:""}:t)}));}catch(e){console.error("delRes failed",e);}}
   async function addO(o){try{const id=await monday.createOfficer(o);const recurring=data.dailyTasks.filter(t=>t.recurring);if(recurring.length)await monday.addOfficerToRecurringDailyTasks(id,recurring);setData(p=>({...p,officers:[...p.officers,{...o,id,avatar:mkA(o.name),joinedDate:TODAY}],teams:p.teams.includes(o.team)?p.teams:[...p.teams,o.team],dailyTasks:p.dailyTasks.map(t=>t.recurring?{...t,assignedTo:[...t.assignedTo,id]}:t)}));}catch(e){console.error("addO failed",e);}}
   async function updO(id,u){try{await monday.updateOfficer(id,u);setData(p=>({...p,officers:p.officers.map(o=>o.id===id?{...o,...u,avatar:mkA(u.name||o.name)}:o),teams:p.teams.includes(u.team)?p.teams:[...p.teams,u.team]}));}catch(e){console.error("updO failed",e);}}
   async function delO(id){try{await monday.deleteOfficer(id);setData(p=>{const c={...p.completions},dc={...p.dailyCompletions};Object.keys(c).forEach(k=>{if(k.startsWith(`${id}-`))delete c[k];});Object.keys(dc).forEach(k=>{if(k.startsWith(`${id}-`))delete dc[k];});return{...p,officers:p.officers.filter(o=>o.id!==id),tasks:p.tasks.map(t=>({...t,assignedTo:t.assignedTo.filter(a=>a!==id)})),dailyTasks:p.dailyTasks.map(t=>({...t,assignedTo:t.assignedTo.filter(a=>a!==id)})),completions:c,dailyCompletions:dc};});}catch(e){console.error("delO failed",e);}}
@@ -129,7 +131,6 @@ export default function App(){
           {[
             {key:"dashboard",icon:I.dashboard,label:"Dashboard"},
             {key:"officers",icon:I.people,label:"Loan Officers"},
-            {key:"tasks",icon:I.tasks,label:"Tasks"},
             {key:"activity",icon:I.trend,label:"Activity"},
             {key:"resources",icon:I.resources,label:"Resources"},
           ].map(item=>(
@@ -155,9 +156,7 @@ export default function App(){
         <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
         <section id="officers"><Officers data={data} oS={oS} setModal={setModal} search={search} setSearch={setSearch} expandedId={expandedOfficerId} setExpandedId={setExpandedOfficerId} toggle={toggleC} addN={addN} togD={togD} setDN={setDN}/></section>
         <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
-        <section id="tasks"><TasksSection data={data} dDate={dDate} setDDate={setDDate} togD={togD} setDN={setDN} delDT={delDT} tF={tF} setTF={setTF} toggle={toggleC} setModal={setModal}/></section>
-        <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
-        <section id="activity"><ActivityPage data={data} date={aDate} setDate={setADate} logM={logM} setModal={setModal}/></section>
+        <section id="activity"><ActivityPage data={data} date={aDate} setDate={setADate} logM={logM} setModal={setModal} dDate={dDate} setDDate={setDDate} togD={togD} setDN={setDN} delDT={delDT} tF={tF} setTF={setTF} toggle={toggleC}/></section>
         <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
         <section id="resources"><ResourcesPage data={data} filter={rF} setFilter={setRF} setModal={setModal}/></section>
       </main>
@@ -165,7 +164,9 @@ export default function App(){
       {modal==="add-task"&&<AddTaskModal data={data} onClose={()=>setModal(null)} onSave={addTask}/>}
       {modal?.type==="edit-task"&&<AddTaskModal data={data} task={modal.task} onClose={()=>setModal(null)} onSave={t=>updT(modal.task.id,t)}/>}
       {modal?.type==="confirm-delete-task"&&<Confirm msg={`Delete "${modal.task.title}"?`} sub="Completion history will be lost." onNo={()=>setModal(null)} onOk={()=>{delTask(modal.task.id);setModal(null);}}/>}
-      {modal==="add-resource"&&<AddResourceModal onClose={()=>setModal(null)} onAdd={addRes}/>}
+      {modal==="add-resource"&&<AddResourceModal onClose={()=>setModal(null)} onSave={addRes}/>}
+      {modal?.type==="edit-resource"&&<AddResourceModal resource={modal.resource} onClose={()=>setModal(null)} onSave={r=>updRes(modal.resource.id,r)}/>}
+      {modal?.type==="confirm-delete-resource"&&<Confirm msg={`Delete "${modal.resource.title}"?`} sub="Any tasks linked to this resource will be unlinked." onNo={()=>setModal(null)} onOk={()=>{delRes(modal.resource.id);setModal(null);}}/>}
       {modal==="add-officer"&&<OfficerFormModal data={data} onClose={()=>setModal(null)} onSave={addO}/>}
       {modal==="add-daily"&&<AddDailyModal data={data} onClose={()=>setModal(null)} onSave={addDT}/>}
       {modal?.type==="edit-daily"&&<AddDailyModal data={data} task={modal.task} onClose={()=>setModal(null)} onSave={t=>updDT(modal.task.id,t)}/>}
@@ -213,24 +214,6 @@ function Dashboard({data,g,oS,goToOfficer,dSt}){
 // ═══════════════════════════════════════════════════════════════════════════════
 // TASKS (combined: Daily checklist + One-time coaching assignments)
 // ═══════════════════════════════════════════════════════════════════════════════
-function TasksSection({data,dDate,setDDate,togD,setDN,delDT,tF,setTF,toggle,setModal}){
-  const[view,setView]=useState("daily");
-  const pill=(active)=>({padding:"5px 14px",borderRadius:6,border:"1px solid",fontSize:12,cursor:"pointer",fontWeight:600,fontFamily:"inherit",background:active?C.primaryDim:"transparent",borderColor:active?`rgba(45,183,166,0.3)`:C.border,color:active?C.primary:C.muted});
-  return<div>
-    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6,flexWrap:"wrap",gap:8}}>
-      <div><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Space Grotesk',sans-serif"}}>Tasks</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>{view==="daily"?"Recurring and one-off daily assignments":"One-time assignments with deadlines"}</p></div>
-      <button onClick={()=>setModal(view==="daily"?"add-daily":"add-task")} style={{display:"flex",alignItems:"center",gap:5,background:C.primary,border:"none",color:"#fff",padding:"9px 16px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{I.plus} {view==="daily"?"New Daily Task":"New Task"}</button>
-    </div>
-    <div style={{display:"flex",gap:6,margin:"14px 0 20px"}}>
-      <button onClick={()=>setView("daily")} style={pill(view==="daily")}>{I.repeat} Daily Tasks</button>
-      <button onClick={()=>setView("onetime")} style={pill(view==="onetime")}>{I.tasks} One-Time Tasks</button>
-    </div>
-    {view==="daily"
-      ?<DailyPage data={data} date={dDate} setDate={setDDate} togD={togD} setDN={setDN} setModal={setModal} delDT={delDT}/>
-      :<TasksPage data={data} filter={tF} setFilter={setTF} setModal={setModal} toggle={toggle}/>}
-  </div>;
-}
-
 function DailyPage({data,date,setDate,togD,setDN,setModal,delDT}){
   const[eN,setEN]=useState(null);const[nT,setNT]=useState("");
   const dS=dt=>{let t=0,d=0;data.dailyTasks.forEach(tk=>tk.assignedTo.forEach(oid=>{if(data.officers.find(o=>o.id===oid)){t++;if(data.dailyCompletions[`${oid}-${tk.id}-${dt}`])d++;}}));return{t,d,p:t?Math.round(d/t*100):0};};
@@ -300,8 +283,10 @@ function MetricRow({officer,metric,date,logM,goals}){
   </div>;
 }
 
-function ActivityPage({data,date,setDate,logM,setModal}){
+function ActivityPage({data,date,setDate,logM,setModal,dDate,setDDate,togD,setDN,delDT,tF,setTF,toggle}){
   const[period,setPeriod]=useState("week");
+  const[view,setView]=useState("daily");
+  const pill=(active)=>({padding:"5px 14px",borderRadius:6,border:"1px solid",fontSize:12,cursor:"pointer",fontWeight:600,fontFamily:"inherit",background:active?C.primaryDim:"transparent",borderColor:active?`rgba(45,183,166,0.3)`:C.border,color:active?C.primary:C.muted});
   const isT=date===TODAY;
   const periodMetrics=data.metrics.filter(m=>inPeriod(m.date,period));
   const team=sumMetrics(periodMetrics);
@@ -315,7 +300,7 @@ function ActivityPage({data,date,setDate,logM,setModal}){
     {label:"Calls → Closed (overall)",pct:pctOf(team.closed,team.calls)},
   ];
   return<div>
-    <div style={{marginBottom:6}}><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Space Grotesk',sans-serif"}}>Activity</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>Calls, meetings, applications, preapprovals & closed loans — daily log and conversion ratios</p></div>
+    <div style={{marginBottom:6}}><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Space Grotesk',sans-serif"}}>Activity</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>Calls, meetings, applications, preapprovals & closed loans — plus daily &amp; one-time tasks, tracked together</p></div>
 
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",margin:"20px 0 8px",flexWrap:"wrap",gap:8}}>
       <h3 style={{fontSize:13,fontWeight:600,color:C.white,margin:0,fontFamily:"'Space Grotesk',sans-serif"}}>Log for the day</h3>
@@ -362,6 +347,19 @@ function ActivityPage({data,date,setDate,logM,setModal}){
       </div>;})}
       {data.officers.length===0&&<p style={{color:C.muted,fontSize:13,padding:"12px 14px"}}>No officers yet.</p>}
     </div>
+
+    <div style={{borderTop:`1px solid ${C.border}`,margin:"32px 0"}}/>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6,flexWrap:"wrap",gap:8}}>
+      <div><h3 style={{fontSize:13,fontWeight:600,color:C.white,margin:0,fontFamily:"'Space Grotesk',sans-serif"}}>Tasks</h3><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>{view==="daily"?"Recurring and one-off daily assignments":"One-time assignments with deadlines"}</p></div>
+      <button onClick={()=>setModal(view==="daily"?"add-daily":"add-task")} style={{display:"flex",alignItems:"center",gap:5,background:C.primary,border:"none",color:"#fff",padding:"9px 16px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{I.plus} {view==="daily"?"New Daily Task":"New Task"}</button>
+    </div>
+    <div style={{display:"flex",gap:6,margin:"14px 0 20px"}}>
+      <button onClick={()=>setView("daily")} style={pill(view==="daily")}>{I.repeat} Daily Tasks</button>
+      <button onClick={()=>setView("onetime")} style={pill(view==="onetime")}>{I.tasks} One-Time Tasks</button>
+    </div>
+    {view==="daily"
+      ?<DailyPage data={data} date={dDate} setDate={setDDate} togD={togD} setDN={setDN} setModal={setModal} delDT={delDT}/>
+      :<TasksPage data={data} filter={tF} setFilter={setTF} setModal={setModal} toggle={toggle}/>}
   </div>;
 }
 
@@ -436,7 +434,7 @@ function ResourcesPage({data,filter,setFilter,setModal}){
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}><div><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Space Grotesk',sans-serif"}}>Resources</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>Coaching materials and training content</p></div><button onClick={()=>setModal("add-resource")} style={{display:"flex",alignItems:"center",gap:5,background:C.primary,border:"none",color:"#fff",padding:"9px 16px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{I.plus} Add Resource</button></div>
     <div style={{display:"flex",gap:6,marginBottom:18,flexWrap:"wrap"}}>{cats.map(c=><button key={c} onClick={()=>setFilter(c)} style={{padding:"5px 12px",borderRadius:6,border:"1px solid",fontSize:11,cursor:"pointer",fontWeight:500,fontFamily:"inherit",background:filter===c?(c==="all"?C.primaryDim:`${cC(c)}15`):"transparent",borderColor:filter===c?(c==="all"?`rgba(45,183,166,0.3)`:`${cC(c)}40`):C.border,color:filter===c?(c==="all"?C.primary:cC(c)):C.muted}}>{c==="all"?"All":c}</button>)}</div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}}>{fil.map(r=>{const lk=data.tasks.filter(t=>t.resourceId===r.id);return<div key={r.id} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:16,transition:"border-color 0.2s"}} onMouseEnter={e=>e.currentTarget.style.borderColor=C.bHover} onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>
-      <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:8}}><div style={{width:32,height:32,borderRadius:7,display:"flex",alignItems:"center",justifyContent:"center",background:`${cC(r.category)}15`,color:cC(r.category)}}>{ti[r.type]||I.doc}</div><div><span style={{fontSize:9,fontWeight:700,color:cC(r.category),textTransform:"uppercase",fontFamily:"'Space Grotesk',sans-serif"}}>{r.category}</span><div style={{fontSize:13,fontWeight:600,color:C.white}}>{r.title}</div></div></div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}><div style={{display:"flex",alignItems:"center",gap:9}}><div style={{width:32,height:32,borderRadius:7,display:"flex",alignItems:"center",justifyContent:"center",background:`${cC(r.category)}15`,color:cC(r.category)}}>{ti[r.type]||I.doc}</div><div><span style={{fontSize:9,fontWeight:700,color:cC(r.category),textTransform:"uppercase",fontFamily:"'Space Grotesk',sans-serif"}}>{r.category}</span><div style={{fontSize:13,fontWeight:600,color:C.white}}>{r.title}</div></div></div><div style={{display:"flex",alignItems:"center",gap:2,flexShrink:0}}><button onClick={()=>setModal({type:"edit-resource",resource:r})} style={{background:"none",border:"none",color:C.dim,cursor:"pointer",padding:2,opacity:0.6}}>{I.edit}</button><button onClick={()=>setModal({type:"confirm-delete-resource",resource:r})} style={{background:"none",border:"none",color:C.dim,cursor:"pointer",padding:2,opacity:0.6}}>{I.trash}</button></div></div>
       <p style={{margin:"0 0 8px",fontSize:12,color:C.muted,lineHeight:1.6,whiteSpace:"pre-line"}}>{r.description}</p>
       {r.url&&<a href={r.url} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",gap:5,background:"rgba(255,255,255,0.03)",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 10px",color:C.primary,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",marginBottom:8,textDecoration:"none",width:"fit-content"}}>{I.doc} Open File</a>}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}><span style={{fontSize:10,color:C.dim}}>{r.type.toUpperCase()} · {fD(r.createdAt)}</span>{lk.length>0&&<span style={{fontSize:9,color:C.primary,fontFamily:"'Space Grotesk',sans-serif"}}>{lk.length} task{lk.length>1?"s":""}</span>}</div>
@@ -465,9 +463,10 @@ function AddTaskModal({data,task,onClose,onSave}){
   return<Modal title={isE?"Edit Coaching Task":"New Coaching Task"} onClose={onClose}><div style={{marginBottom:12}}><label style={sL}>Title *</label><input value={f.title} onChange={e=>s("title",e.target.value)} style={sI} autoFocus/></div><div style={{marginBottom:12}}><label style={sL}>Description</label><textarea value={f.description} onChange={e=>s("description",e.target.value)} rows={2} style={{...sI,resize:"vertical"}}/></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}><div><label style={sL}>Category</label><select value={f.category} onChange={e=>s("category",e.target.value)} style={sS}>{["Sales","Product Knowledge","Operations","Partnerships","Compliance"].map(c=><option key={c}>{c}</option>)}</select></div><div><label style={sL}>Priority</label><select value={f.priority} onChange={e=>s("priority",e.target.value)} style={sS}>{["high","medium","low"].map(p=><option key={p}>{p}</option>)}</select></div><div><label style={sL}>Due Date</label><input type="date" value={f.dueDate} onChange={e=>s("dueDate",e.target.value)} style={sS}/></div></div><div style={{marginBottom:12}}><label style={sL}>Linked Resource</label><select value={f.resourceId} onChange={e=>s("resourceId",e.target.value)} style={sS}><option value="">None</option>{data.resources.map(r=><option key={r.id} value={r.id}>{r.title}</option>)}</select></div><div style={{marginBottom:16}}><label style={sL}>Assign To *</label><div style={{display:"flex",gap:5,flexWrap:"wrap"}}><button onClick={()=>s("assignedTo",f.assignedTo.length===data.officers.length?[]:data.officers.map(o=>o.id))} style={{padding:"4px 9px",borderRadius:5,fontSize:11,cursor:"pointer",border:`1px solid ${C.border}`,background:"rgba(255,255,255,0.02)",color:C.muted,fontFamily:"inherit"}}>{f.assignedTo.length===data.officers.length?"None":"All"}</button>{data.officers.map(o=><button key={o.id} onClick={()=>tgl(o.id)} style={{padding:"4px 10px",borderRadius:5,fontSize:11,cursor:"pointer",fontFamily:"inherit",border:`1px solid ${f.assignedTo.includes(o.id)?C.primary:C.border}`,background:f.assignedTo.includes(o.id)?C.primaryDim:"transparent",color:f.assignedTo.includes(o.id)?C.primary:C.muted}}>{o.name}</button>)}</div></div><button onClick={()=>{if(ok){onSave(f);onClose();}}} style={bP(ok)}>{isE?"Save Changes":"Create Task"}</button></Modal>;
 }
 
-function AddResourceModal({onClose,onAdd}){
-  const[f,setF]=useState({title:"",description:"",type:"pdf",category:"Sales",url:""});const s=(k,v)=>setF(p=>({...p,[k]:v}));
-  return<Modal title="Add Resource" onClose={onClose} width={420}><div style={{marginBottom:12}}><label style={sL}>Title *</label><input value={f.title} onChange={e=>s("title",e.target.value)} style={sI} autoFocus/></div><div style={{marginBottom:12}}><label style={sL}>Description</label><textarea value={f.description} onChange={e=>s("description",e.target.value)} rows={2} style={{...sI,resize:"vertical"}}/></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}><div><label style={sL}>Type</label><select value={f.type} onChange={e=>s("type",e.target.value)} style={sS}>{["pdf","video","doc"].map(t=><option key={t}>{t.toUpperCase()}</option>)}</select></div><div><label style={sL}>Category</label><select value={f.category} onChange={e=>s("category",e.target.value)} style={sS}>{["Sales","Product Knowledge","Operations","Partnerships","Compliance"].map(c=><option key={c}>{c}</option>)}</select></div></div><div style={{marginBottom:16}}><label style={sL}>File Link (optional)</label><input value={f.url} onChange={e=>s("url",e.target.value)} placeholder="Paste a Google Drive / Dropbox / web link" style={sI}/><p style={{margin:"6px 0 0",fontSize:11,color:C.dim}}>Upload the file to Google Drive (or wherever you keep files), then paste its shareable link here.</p></div><button onClick={()=>{if(f.title){onAdd(f);onClose();}}} style={bP(!!f.title)}>Add Resource</button></Modal>;
+function AddResourceModal({resource,onClose,onSave}){
+  const isE=!!resource;
+  const[f,setF]=useState(resource?{title:resource.title,description:resource.description,type:resource.type,category:resource.category,url:resource.url||""}:{title:"",description:"",type:"pdf",category:"Sales",url:""});const s=(k,v)=>setF(p=>({...p,[k]:v}));
+  return<Modal title={isE?"Edit Resource":"Add Resource"} onClose={onClose} width={420}><div style={{marginBottom:12}}><label style={sL}>Title *</label><input value={f.title} onChange={e=>s("title",e.target.value)} style={sI} autoFocus/></div><div style={{marginBottom:12}}><label style={sL}>Description</label><textarea value={f.description} onChange={e=>s("description",e.target.value)} rows={2} style={{...sI,resize:"vertical"}}/></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}><div><label style={sL}>Type</label><select value={f.type} onChange={e=>s("type",e.target.value)} style={sS}>{["pdf","video","doc"].map(t=><option key={t}>{t.toUpperCase()}</option>)}</select></div><div><label style={sL}>Category</label><select value={f.category} onChange={e=>s("category",e.target.value)} style={sS}>{["Sales","Product Knowledge","Operations","Partnerships","Compliance"].map(c=><option key={c}>{c}</option>)}</select></div></div><div style={{marginBottom:16}}><label style={sL}>File Link (optional)</label><input value={f.url} onChange={e=>s("url",e.target.value)} placeholder="Paste a Google Drive / Dropbox / web link" style={sI}/><p style={{margin:"6px 0 0",fontSize:11,color:C.dim}}>Upload the file to Google Drive (or wherever you keep files), then paste its shareable link here.</p></div><button onClick={()=>{if(f.title){onSave(f);onClose();}}} style={bP(!!f.title)}>{isE?"Save Changes":"Add Resource"}</button></Modal>;
 }
 
 function AddDailyModal({data,task,onClose,onSave}){

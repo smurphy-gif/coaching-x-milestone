@@ -286,6 +286,16 @@ export const monday = {
       ...(r.url ? { [COL.fileLink]: { url: r.url, text: r.url } } : {}),
     }, true);
   },
+  async updateResource(id, r) {
+    await renameItem(id, r.title);
+    await updateItem(id, {
+      [COL.type]: { labels: [r.type] },
+      [COL.category]: { labels: [r.category] },
+      [COL.description]: r.description || "",
+      [COL.fileLink]: r.url ? { url: r.url, text: r.url } : { url: "", text: "" },
+    }, true);
+  },
+  async deleteResource(id) { await deleteItem(id); },
   async createOfficer(o) {
     return createItem(GROUP.officers, o.name, {
       [COL.email]: { email: o.email, text: o.email },
