@@ -129,8 +129,7 @@ export default function App(){
           {[
             {key:"dashboard",icon:I.dashboard,label:"Dashboard"},
             {key:"officers",icon:I.people,label:"Loan Officers"},
-            {key:"daily",icon:I.daily,label:"Daily Tasks"},
-            {key:"tasks",icon:I.tasks,label:"Coaching Tasks"},
+            {key:"tasks",icon:I.tasks,label:"Tasks"},
             {key:"activity",icon:I.trend,label:"Activity"},
             {key:"resources",icon:I.resources,label:"Resources"},
           ].map(item=>(
@@ -156,9 +155,7 @@ export default function App(){
         <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
         <section id="officers"><Officers data={data} oS={oS} setModal={setModal} search={search} setSearch={setSearch} expandedId={expandedOfficerId} setExpandedId={setExpandedOfficerId} toggle={toggleC} addN={addN} togD={togD} setDN={setDN}/></section>
         <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
-        <section id="daily"><DailyPage data={data} date={dDate} setDate={setDDate} togD={togD} setDN={setDN} setModal={setModal} delDT={delDT}/></section>
-        <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
-        <section id="tasks"><TasksPage data={data} filter={tF} setFilter={setTF} setModal={setModal} toggle={toggleC}/></section>
+        <section id="tasks"><TasksSection data={data} dDate={dDate} setDDate={setDDate} togD={togD} setDN={setDN} delDT={delDT} tF={tF} setTF={setTF} toggle={toggleC} setModal={setModal}/></section>
         <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
         <section id="activity"><ActivityPage data={data} date={aDate} setDate={setADate} logM={logM} setModal={setModal}/></section>
         <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
@@ -214,15 +211,32 @@ function Dashboard({data,g,oS,goToOfficer,dSt}){
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// DAILY TASKS
+// TASKS (combined: Daily checklist + One-time coaching assignments)
 // ═══════════════════════════════════════════════════════════════════════════════
+function TasksSection({data,dDate,setDDate,togD,setDN,delDT,tF,setTF,toggle,setModal}){
+  const[view,setView]=useState("daily");
+  const pill=(active)=>({padding:"5px 14px",borderRadius:6,border:"1px solid",fontSize:12,cursor:"pointer",fontWeight:600,fontFamily:"inherit",background:active?C.primaryDim:"transparent",borderColor:active?`rgba(45,183,166,0.3)`:C.border,color:active?C.primary:C.muted});
+  return<div>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6,flexWrap:"wrap",gap:8}}>
+      <div><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Space Grotesk',sans-serif"}}>Tasks</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>{view==="daily"?"Recurring and one-off daily assignments":"One-time assignments with deadlines"}</p></div>
+      <button onClick={()=>setModal(view==="daily"?"add-daily":"add-task")} style={{display:"flex",alignItems:"center",gap:5,background:C.primary,border:"none",color:"#fff",padding:"9px 16px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{I.plus} {view==="daily"?"New Daily Task":"New Task"}</button>
+    </div>
+    <div style={{display:"flex",gap:6,margin:"14px 0 20px"}}>
+      <button onClick={()=>setView("daily")} style={pill(view==="daily")}>{I.repeat} Daily Tasks</button>
+      <button onClick={()=>setView("onetime")} style={pill(view==="onetime")}>{I.tasks} One-Time Tasks</button>
+    </div>
+    {view==="daily"
+      ?<DailyPage data={data} date={dDate} setDate={setDDate} togD={togD} setDN={setDN} setModal={setModal} delDT={delDT}/>
+      :<TasksPage data={data} filter={tF} setFilter={setTF} setModal={setModal} toggle={toggle}/>}
+  </div>;
+}
+
 function DailyPage({data,date,setDate,togD,setDN,setModal,delDT}){
   const[eN,setEN]=useState(null);const[nT,setNT]=useState("");
   const dS=dt=>{let t=0,d=0;data.dailyTasks.forEach(tk=>tk.assignedTo.forEach(oid=>{if(data.officers.find(o=>o.id===oid)){t++;if(data.dailyCompletions[`${oid}-${tk.id}-${dt}`])d++;}}));return{t,d,p:t?Math.round(d/t*100):0};};
   const ds=dS(date);const isT=date===TODAY;
   return<div>
-    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}><div><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Space Grotesk',sans-serif"}}>Daily Tasks</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>Recurring and one-off daily assignments</p></div><button onClick={()=>setModal("add-daily")} style={{display:"flex",alignItems:"center",gap:5,background:C.primary,border:"none",color:"#fff",padding:"9px 16px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{I.plus} New Daily Task</button></div>
-    <div style={{display:"flex",alignItems:"center",gap:10,margin:"18px 0",background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:"9px 14px",width:"fit-content"}}>
+    <div style={{display:"flex",alignItems:"center",gap:10,margin:"4px 0 18px",background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:"9px 14px",width:"fit-content"}}>
       <button onClick={()=>setDate(shD(date,-1))} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",padding:2,display:"flex"}}>{I.chevL}</button>
       <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{color:C.primary}}>{I.cal}</span><span style={{fontSize:14,fontWeight:600,color:C.white,minWidth:150}}>{fS(date)}</span>{isT&&<span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:4,background:C.primaryDim,color:C.primary,fontFamily:"'Space Grotesk',sans-serif"}}>TODAY</span>}</div>
       <button onClick={()=>setDate(shD(date,1))} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",padding:2,display:"flex"}}>{I.chevR}</button>
@@ -407,7 +421,6 @@ function OfficerDetail({data,officer,oS,toggle,addN,togD,setDN,setModal,onClose}
 function TasksPage({data,filter,setFilter,setModal,toggle}){
   const cats=["all",...new Set(data.tasks.map(t=>t.category))];const fil=filter==="all"?data.tasks:data.tasks.filter(t=>t.category===filter);
   return<div>
-    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}><div><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Space Grotesk',sans-serif"}}>Coaching Tasks</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>One-time assignments with deadlines</p></div><button onClick={()=>setModal("add-task")} style={{display:"flex",alignItems:"center",gap:5,background:C.primary,border:"none",color:"#fff",padding:"9px 16px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{I.plus} New Task</button></div>
     <div style={{display:"flex",gap:6,marginBottom:18,flexWrap:"wrap"}}>{cats.map(c=><button key={c} onClick={()=>setFilter(c)} style={{padding:"5px 12px",borderRadius:6,border:"1px solid",fontSize:11,cursor:"pointer",fontWeight:500,fontFamily:"inherit",background:filter===c?(c==="all"?C.primaryDim:`${cC(c)}15`):"transparent",borderColor:filter===c?(c==="all"?`rgba(45,183,166,0.3)`:`${cC(c)}40`):C.border,color:filter===c?(c==="all"?C.primary:cC(c)):C.muted}}>{c==="all"?"All":c}</button>)}</div>
     {fil.map(t=>{const dn=t.assignedTo.filter(id=>data.completions[`${id}-${t.id}`]).length,pct=t.assignedTo.length?Math.round(dn/t.assignedTo.length*100):0,d=dU(t.dueDate);return<div key={t.id} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:"14px 18px",marginBottom:7}}>
       <div style={{display:"flex",alignItems:"flex-start",gap:12}}><div style={{flex:1}}><div style={{display:"flex",alignItems:"center",gap:7,marginBottom:2}}><span style={{fontSize:14,fontWeight:600,color:C.white}}>{t.title}</span><span style={{fontSize:8,fontWeight:700,padding:"2px 5px",borderRadius:3,background:`${cC(t.category)}20`,color:cC(t.category),textTransform:"uppercase",fontFamily:"'Space Grotesk',sans-serif"}}>{t.category}</span></div><p style={{margin:"2px 0 6px",fontSize:12,color:C.muted}}>{t.description}</p><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{flex:1,maxWidth:160,height:4,background:"rgba(255,255,255,0.06)",borderRadius:2,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:pct===100?C.green:C.primary,borderRadius:2}}/></div><span style={{fontSize:11,fontFamily:"'Space Grotesk',sans-serif",color:pct===100?C.green:C.muted}}>{dn}/{t.assignedTo.length}</span></div></div>
