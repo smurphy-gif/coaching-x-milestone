@@ -254,16 +254,16 @@ function Dashboard({data,g,oS,goToOfficer,dSt}){
           <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{color:C.gold}}>{I.trophy}</span><h3 style={{margin:0,fontSize:14,fontWeight:600,color:C.white,fontFamily:"'Baloo 2',sans-serif"}}>Leaderboard</h3></div>
           <span style={{fontSize:9,color:C.dim,fontFamily:"'Baloo 2',sans-serif",textTransform:"uppercase",letterSpacing:0.6}}>This Week's Points</span>
         </div>
-        {podium.length===3&&<div style={{display:"flex",alignItems:"flex-end",gap:6,marginBottom:20,padding:"0 2px"}}>
+        {podium.length===3&&<div style={{display:"flex",alignItems:"flex-end",gap:12,marginBottom:26,padding:"0 4px"}}>
           {[podium[1],podium[0],podium[2]].map((r,pi)=>{
-            const h=pi===1?78:pi===0?58:48;
-            const medal=r.rank===1?"🥇":r.rank===2?"🥈":"🥉";
+            const h=pi===1?120:pi===0?92:76;
+            const rankColors={1:{bg:"linear-gradient(135deg,#FFD24D,#E8A317)",ring:"#FFD24D",shadow:"rgba(232,163,23,0.45)"},2:{bg:"linear-gradient(135deg,#8FD3FE,#4FA9E8)",ring:"#4FA9E8",shadow:"rgba(79,169,232,0.4)"},3:{bg:"linear-gradient(135deg,#FFAE73,#E8722D)",ring:"#E8722D",shadow:"rgba(232,114,45,0.4)"}}[r.rank];
             return<div key={r.o.id} onClick={()=>goToOfficer(r.o)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",cursor:"pointer"}}>
-              <div style={{fontSize:18,marginBottom:3}}>{medal}</div>
-              <div style={{width:pi===1?42:34,height:pi===1?42:34,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:pi===1?12:10,fontWeight:700,color:"#fff",background:`linear-gradient(135deg,${C.gold},${C.primary})`,marginBottom:5,border:`2px solid ${C.gold}`,flexShrink:0}}>{r.o.avatar}</div>
-              <div style={{fontSize:10,fontWeight:600,color:C.white,textAlign:"center",marginBottom:1,maxWidth:72,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.o.name}</div>
-              <div style={{fontSize:10,color:C.gold,fontWeight:700,fontFamily:"'Baloo 2',sans-serif",marginBottom:5}}>{r.weekPts} pts</div>
-              <div style={{width:"100%",height:h,background:"rgba(212,168,75,0.08)",borderRadius:"6px 6px 0 0",border:`1px solid rgba(212,168,75,0.25)`,borderBottom:"none"}}/>
+              <div style={{width:pi===1?30:26,height:pi===1?30:26,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:pi===1?15:13,fontWeight:800,color:"#fff",background:rankColors.bg,marginBottom:6,boxShadow:`0 3px 10px ${rankColors.shadow}`,fontFamily:"'Baloo 2',sans-serif",flexShrink:0}}>{r.rank}</div>
+              <div style={{width:pi===1?76:60,height:pi===1?76:60,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:pi===1?22:17,fontWeight:700,color:"#fff",background:`linear-gradient(135deg,${C.gold},${C.primary})`,marginBottom:9,border:`3px solid ${rankColors.ring}`,flexShrink:0}}>{r.o.avatar}</div>
+              <div style={{fontSize:pi===1?15:13,fontWeight:700,color:C.white,textAlign:"center",marginBottom:2,lineHeight:1.25,wordBreak:"break-word"}}>{r.o.name}</div>
+              <div style={{fontSize:pi===1?14:12,color:rankColors.ring,fontWeight:700,fontFamily:"'Baloo 2',sans-serif",marginBottom:8}}>{r.weekPts} pts</div>
+              <div style={{width:"100%",height:h,background:`linear-gradient(180deg,${rankColors.shadow},rgba(212,168,75,0.06))`,borderRadius:"8px 8px 0 0",border:`1px solid ${rankColors.ring}55`,borderBottom:"none"}}/>
             </div>;
           })}
         </div>}
