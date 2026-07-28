@@ -185,6 +185,7 @@ export default function App(){
             {key:"activity",icon:I.trend,label:"Activity"},
             {key:"resources",icon:I.resources,label:"Resources"},
             {key:"calendar",icon:I.cal,label:"Calendar"},
+            {key:"recaps",icon:I.msg,label:"Recaps"},
           ].map(item=>(
             <button key={item.key} onClick={()=>scrollTo(item.key)} style={{
               display:"flex",alignItems:"center",gap:10,padding:"10px 20px",margin:"1px 8px",width:"calc(100% - 16px)",
@@ -213,6 +214,8 @@ export default function App(){
         <section id="resources"><ResourcesPage data={data} filter={rF} setFilter={setRF} setModal={setModal}/></section>
         <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
         <section id="calendar"><CalendarPage/></section>
+        <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
+        <section id="recaps"><RecapsPage data={data}/></section>
       </main>
 
       {modal==="add-task"&&<AddTaskModal data={data} onClose={()=>setModal(null)} onSave={addTask}/>}
@@ -530,6 +533,29 @@ function CalendarPage(){
     <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden"}}>
       <iframe src={src} style={{border:0,display:"block"}} width="100%" height="650" frameBorder="0" scrolling="no" title="Coaching Calls Calendar"/>
     </div>
+  </div>;
+}
+
+function RecapsPage({data}){
+  const recaps=data.recaps||[];
+  return<div>
+    <h2 style={{margin:"0 0 4px",fontSize:18,fontWeight:700,fontFamily:"'Baloo 2',sans-serif",color:C.text}}>Coaching Call Recaps</h2>
+    <p style={{margin:"0 0 16px",fontSize:12,color:C.muted}}>Auto-posted after each coaching call on the Roam/Coaching Calls calendar. Nothing to do here — recaps show up on their own once a call ends and notes are ready.</p>
+    {recaps.length===0?
+      <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:"32px 16px",textAlign:"center",color:C.muted,fontSize:13}}>No recaps yet. Once a coaching call on the Calendar tab finishes, its recap will appear here automatically.</div>
+    :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))",gap:12}}>
+      {recaps.map(r=>{const o=data.officers.find(x=>x.id===r.officerId);return<div key={r.id} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:16}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+          <div style={{width:28,height:28,borderRadius:"50%",background:C.primaryDim,color:C.primary,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700}}>{o?mkA(o.name):"?"}</div>
+          <div>
+            <div style={{fontSize:13,fontWeight:600,color:C.text}}>{o?.name||"Unknown officer"}</div>
+            <div style={{fontSize:10,color:C.dim}}>{r.date?fD(r.date):r.createdAt?fD(r.createdAt):""}</div>
+          </div>
+        </div>
+        <p style={{margin:"0 0 8px",fontSize:12,color:C.muted,lineHeight:1.6,whiteSpace:"pre-line"}}>{r.text}</p>
+        {r.meetingUrl&&<a href={r.meetingUrl} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",gap:5,background:"rgba(16,23,58,0.03)",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 10px",color:C.primary,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",textDecoration:"none",width:"fit-content"}}>{I.video} View call</a>}
+      </div>;})}
+    </div>}
   </div>;
 }
 

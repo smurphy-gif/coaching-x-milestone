@@ -26,6 +26,7 @@ export const GROUP = {
   resources: "group_mm5b4xaz",
   messages: "group_mm5btr8h",
   dailyLog: "group_mm5br6sj",
+  recaps: "group_mm5py6av",
 };
 
 // Column ids — created once when the board was set up. If you rebuild the
@@ -212,7 +213,21 @@ export async function fetchAllData() {
 
   const teams = Array.from(new Set([...DEFAULT_TEAMS, ...officers.map((o) => o.team)]));
 
-  return { officers, resources, tasks, completions, teams, dailyTasks, dailyCompletions, messages, metrics, goals };
+  const recaps = inGroup(GROUP.recaps)
+    .map((it) => {
+      const c = colMap(it);
+      return {
+        id: it.id, title: it.name,
+        officerId: linkedIds(c[COL.officer])[0] || "",
+        date: c[COL.date]?.date || "",
+        text: c[COL.description]?.text || "",
+        meetingUrl: c[COL.fileLink]?.url || "",
+        createdAt: (it.created_at || "").slice(0, 10),
+      };
+    })
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+
+  return { officers, resources, tasks, completions, teams, dailyTasks, dailyCompletions, messages, metrics, goals, recaps };
 }
 
 // ─── Mutations ────────────────────────────────────────────────────────────
@@ -360,6 +375,15 @@ export const monday = {
       ...(m.to?.length ? { [COL.recipients]: { item_ids: m.to.map(Number) } } : {}),
     }, true);
   },
+  async createRecap(r) {
+    return createItem(GROUP.recaps, r.title, {
+      ...(r.officerId ? { [COL.officer]: { item_ids: [Number(r.officerId)] } } : {}),
+      [COL.date]: { date: r.date },
+      [COL.description]: r.text || "",
+      ...(r.meetingUrl ? { [COL.fileLink]: { url: r.meetingUrl, text: r.meetingUrl } } : {}),
+    }, true);
+  },
+  async deleteRecap(id) { await deleteItem(id); },
   // Upsert-style: pass existingId if a metrics row already exists for this
   // officer+date (caller looks this up locally), otherwise a new row is made.
   async logMetrics(existingId, officerId, date, m) {
