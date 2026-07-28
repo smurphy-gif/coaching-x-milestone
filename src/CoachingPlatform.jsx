@@ -44,7 +44,7 @@ const I={
 };
 
 const dU=(d)=>Math.ceil((new Date(d)-new Date(TODAY))/864e5);
-const fD=(d)=>new Date(d).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+const fD=(d)=>{const s=String(d);return new Date(s.includes("T")?s:s+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});};
 const fS=(d)=>new Date(d+"T12:00:00").toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
 const pC=(p)=>({high:C.red,medium:C.gold,low:C.primary}[p]||C.muted);
 const cC=(c)=>({Sales:C.primary,"Product Knowledge":C.gold,Operations:C.accent,Partnerships:"#E07C5A",Compliance:"#7C6BC4"}[c]||C.muted);
