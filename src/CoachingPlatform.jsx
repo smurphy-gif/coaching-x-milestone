@@ -184,6 +184,7 @@ export default function App(){
             {key:"officers",icon:I.people,label:"Loan Officers"},
             {key:"activity",icon:I.trend,label:"Activity"},
             {key:"resources",icon:I.resources,label:"Resources"},
+            {key:"calendar",icon:I.cal,label:"Calendar"},
           ].map(item=>(
             <button key={item.key} onClick={()=>scrollTo(item.key)} style={{
               display:"flex",alignItems:"center",gap:10,padding:"10px 20px",margin:"1px 8px",width:"calc(100% - 16px)",
@@ -210,6 +211,8 @@ export default function App(){
         <section id="activity"><ActivityPage data={data} date={aDate} setDate={setADate} logM={logM} setModal={setModal} dDate={dDate} setDDate={setDDate} togD={togD} setDN={setDN} delDT={delDT} tF={tF} setTF={setTF} toggle={toggleC}/></section>
         <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
         <section id="resources"><ResourcesPage data={data} filter={rF} setFilter={setRF} setModal={setModal}/></section>
+        <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
+        <section id="calendar"><CalendarPage/></section>
       </main>
 
       {modal==="add-task"&&<AddTaskModal data={data} onClose={()=>setModal(null)} onSave={addTask}/>}
@@ -516,6 +519,17 @@ function ResourcesPage({data,filter,setFilter,setModal}){
       {r.url&&<a href={r.url} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",gap:5,background:"rgba(16,23,58,0.03)",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 10px",color:C.primary,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",marginBottom:8,textDecoration:"none",width:"fit-content"}}>{I.doc} Open File</a>}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}><span style={{fontSize:10,color:C.dim}}>{r.type.toUpperCase()} · {fD(r.createdAt)}</span>{lk.length>0&&<span style={{fontSize:9,color:C.primary,fontFamily:"'Baloo 2',sans-serif"}}>{lk.length} task{lk.length>1?"s":""}</span>}</div>
     </div>;})}</div>
+  </div>;
+}
+
+function CalendarPage(){
+  const src="https://calendar.google.com/calendar/embed?src=c_d49efcfe3601543bc131b1c6087e9307a593a8aac2451692f58215eeb2f7dddd%40group.calendar.google.com&ctz=America%2FNew_York&showTitle=0&showPrint=0&showTabs=0&showCalendars=0&showTz=0&mode=MONTH";
+  return<div>
+    <h2 style={{margin:"0 0 4px",fontSize:18,fontWeight:700,fontFamily:"'Baloo 2',sans-serif",color:C.text}}>Coaching Calls</h2>
+    <p style={{margin:"0 0 16px",fontSize:12,color:C.muted}}>All scheduled coaching calls. Add or edit events on the "Coaching Calls" Google Calendar and they'll show up here automatically.</p>
+    <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden"}}>
+      <iframe src={src} style={{border:0,display:"block"}} width="100%" height="650" frameBorder="0" scrolling="no" title="Coaching Calls Calendar"/>
+    </div>
   </div>;
 }
 
