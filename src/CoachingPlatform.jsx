@@ -301,8 +301,7 @@ function Dashboard({data,g,oS,goToOfficer,dSt}){
 // ═══════════════════════════════════════════════════════════════════════════════
 function DailyPage({data,date,setDate,togD,setDN,setModal,delDT}){
   const[eN,setEN]=useState(null);const[nT,setNT]=useState("");
-  const dS=dt=>{let t=0,d=0;data.dailyTasks.forEach(tk=>tk.assignedTo.forEach(oid=>{if(data.officers.find(o=>o.id===oid)){t++;if(data.dailyCompletions[`${oid}-${tk.id}-${dt}`])d++;}}));return{t,d,p:t?Math.round(d/t*100):0};};
-  const ds=dS(date);const isT=date===TODAY;
+  const isT=date===TODAY;
   return<div>
     <div style={{display:"flex",alignItems:"center",gap:10,margin:"4px 0 18px",background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:"9px 14px",width:"fit-content"}}>
       <button onClick={()=>setDate(shD(date,-1))} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",padding:2,display:"flex"}}>{I.chevL}</button>
@@ -310,7 +309,6 @@ function DailyPage({data,date,setDate,togD,setDN,setModal,delDT}){
       <button onClick={()=>setDate(shD(date,1))} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",padding:2,display:"flex"}}>{I.chevR}</button>
       {!isT&&<button onClick={()=>setDate(TODAY)} style={{marginLeft:6,background:C.primaryDim,border:`1px solid rgba(45,183,166,0.2)`,borderRadius:6,padding:"4px 10px",color:C.primary,fontSize:11,cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>Today</button>}
     </div>
-    <div style={{display:"flex",gap:12,marginBottom:20}}><Stat label="Check-ins" value={ds.t}/><Stat label="Completed" value={ds.d} accent={C.green}/><Stat label="Rate" value={`${ds.p}%`} accent={ds.p===100?C.green:ds.p>=50?C.gold:C.red}/></div>
     {data.dailyTasks.map(t=>{
       const aO=t.assignedTo.map(id=>data.officers.find(o=>o.id===id)).filter(Boolean);
       const dc=aO.filter(o=>data.dailyCompletions[`${o.id}-${t.id}-${date}`]).length;
