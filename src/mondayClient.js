@@ -47,7 +47,7 @@ const COL = {
 
 const LOG_TYPE = { completion: "Task Completion", checkin: "Daily Check-in", metric: "Daily Metric" };
 const DEFAULT_TEAMS = ["Purchase", "Refinance", "FHA/VA", "Jumbo", "USDA"];
-const DEFAULT_GOALS = { calls: 5, meetings: 3, applications: 7, preapprovals: 2, closed: 1, creditPulls: 0, faceToFace: 1, followUpCalls: 1, openHouses: 0.4 };
+const DEFAULT_GOALS = { calls: 5, meetings: 3, applications: 7, preapprovals: 2, closed: 1, creditPulls: 0, faceToFace: 1, followUpCalls: 1, openHouses: 1 };
 
 async function gql(query, variables = {}) {
   const res = await fetch(API_URL, {

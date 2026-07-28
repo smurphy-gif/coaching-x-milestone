@@ -249,7 +249,7 @@ function Dashboard({data,g,oS,goToOfficer,dSt}){
     <div style={{display:"flex",gap:12,marginBottom:24,flexWrap:"wrap"}}>
       <Stat label="Assignments" value={g.totalTasks} sub="coaching tasks"/><Stat label="Completed" value={g.totalCompleted} accent={C.green} sub={`${g.totalTasks?Math.round((g.totalCompleted/g.totalTasks)*100):0}% done`}/><Stat label="Avg Progress" value={`${g.avgRate}%`} accent={C.primary} sub="per officer"/><Stat label="Today's Dailies" value={`${dSt.pct}%`} accent={dSt.pct===100?C.green:C.gold} sub={`${dSt.dn}/${dSt.tot} done`}/>
     </div>
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+    <div style={{display:"grid",gridTemplateColumns:"1fr",gap:16}}>
       <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:20}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,flexWrap:"wrap",gap:6}}>
           <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{color:C.gold}}>{I.trophy}</span><h3 style={{margin:0,fontSize:14,fontWeight:600,color:C.white,fontFamily:"'Baloo 2',sans-serif"}}>Leaderboard</h3></div>
@@ -333,7 +333,7 @@ function DailyPage({data,date,setDate,togD,setDN,setModal,delDT}){
 // ACTIVITY / FUNNEL TRACKER
 // ═══════════════════════════════════════════════════════════════════════════════
 const FUNNEL_FIELDS=[
-  {key:"calls",label:"Calls"},{key:"meetings",label:"Meetings"},{key:"applications",label:"Applications"},
+  {key:"calls",label:"Prospecting Calls"},{key:"applications",label:"Applications"},
   {key:"preapprovals",label:"Preapprovals"},{key:"closed",label:"Closed Loans"},
   {key:"creditPulls",label:"Credit Pulls"},{key:"faceToFace",label:"Face-to-Face Meetings"},
   {key:"followUpCalls",label:"Follow-Up Calls"},{key:"openHouses",label:"Open Houses"},
