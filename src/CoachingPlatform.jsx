@@ -526,8 +526,7 @@ function ResourcesPage({data,filter,setFilter,setModal}){
 function CalendarPage(){
   const src="https://calendar.google.com/calendar/embed?src=c_d49efcfe3601543bc131b1c6087e9307a593a8aac2451692f58215eeb2f7dddd%40group.calendar.google.com&ctz=America%2FNew_York&showTitle=0&showPrint=0&showTabs=0&showCalendars=0&showTz=0&mode=MONTH";
   return<div>
-    <h2 style={{margin:"0 0 4px",fontSize:18,fontWeight:700,fontFamily:"'Baloo 2',sans-serif",color:C.text}}>Coaching Calls</h2>
-    <p style={{margin:"0 0 16px",fontSize:12,color:C.muted}}>All scheduled coaching calls. Add or edit events on the "Coaching Calls" Google Calendar and they'll show up here automatically.</p>
+    <div style={{marginBottom:20}}><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Baloo 2',sans-serif"}}>Coaching Calls</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>All scheduled coaching calls. Add or edit events on the "Coaching Calls" Google Calendar and they'll show up here automatically.</p></div>
     <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden"}}>
       <iframe src={src} style={{border:0,display:"block"}} width="100%" height="650" frameBorder="0" scrolling="no" title="Coaching Calls Calendar"/>
     </div>
@@ -599,8 +598,7 @@ function RecapCard({r,o}){
 function RecapsPage({data}){
   const recaps=data.recaps||[];
   return<div>
-    <h2 style={{margin:"0 0 4px",fontSize:18,fontWeight:700,fontFamily:"'Baloo 2',sans-serif",color:C.text}}>Coaching Call Recaps</h2>
-    <p style={{margin:"0 0 16px",fontSize:12,color:C.muted}}>Auto-posted after each coaching call on the Roam/Coaching Calls calendar. Nothing to do here — recaps show up on their own once a call ends and notes are ready.</p>
+    <div style={{marginBottom:20}}><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Baloo 2',sans-serif"}}>Coaching Call Recaps</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>Auto-posted after each coaching call on the Roam/Coaching Calls calendar. Nothing to do here — recaps show up on their own once a call ends and notes are ready.</p></div>
     {recaps.length===0?
       <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:"32px 16px",textAlign:"center",color:C.muted,fontSize:13}}>No recaps yet. Once a coaching call on the Calendar tab finishes, its recap will appear here automatically.</div>
     :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))",gap:12}}>
