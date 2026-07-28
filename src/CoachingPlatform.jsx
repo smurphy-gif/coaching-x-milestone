@@ -239,7 +239,6 @@ export default function App(){
 // DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════════
 function Dashboard({data,g,oS,goToOfficer,dSt}){
-  const upcoming=data.tasks.filter(t=>dU(t.dueDate)>=0&&dU(t.dueDate)<=14).sort((a,b)=>dU(a.dueDate)-dU(b.dueDate));
   const board=data.officers.map(o=>({o,weekPts:officerPoints(data,o.id,P_WEEK),lastWeekPts:officerPoints(data,o.id,P_LASTWEEK),allTime:officerPoints(data,o.id,P_ALL),streak:officerStreak(data,o.id)}));
   const ranked=[...board].sort((a,b)=>b.weekPts-a.weekPts).map((r,i)=>({...r,rank:i+1}));
   const lastRanks={};[...board].sort((a,b)=>b.lastWeekPts-a.lastWeekPts).forEach((r,i)=>{lastRanks[r.o.id]=i+1;});
@@ -283,14 +282,6 @@ function Dashboard({data,g,oS,goToOfficer,dSt}){
             <span style={{fontSize:13,fontWeight:700,color:C.gold,fontFamily:"'Baloo 2',sans-serif"}}>{r.weekPts}<span style={{fontSize:9,color:C.dim,fontWeight:400}}> pts</span></span>
           </div>;})}
         {ranked.length===0&&<p style={{color:C.muted,fontSize:13}}>Add loan officers to start the competition.</p>}
-      </div>
-      <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:20}}>
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}><span style={{color:C.primary}}>{I.daily}</span><h3 style={{margin:0,fontSize:14,fontWeight:600,color:C.white,fontFamily:"'Baloo 2',sans-serif"}}>Upcoming Deadlines</h3></div>
-        {upcoming.length===0&&<p style={{color:C.muted,fontSize:13}}>No deadlines in the next 2 weeks.</p>}
-        {upcoming.map(t=>{const d=dU(t.dueDate),dn=t.assignedTo.filter(id=>data.completions[`${id}-${t.id}`]).length;return<div key={t.id} style={{padding:"9px 0",borderBottom:`1px solid ${C.border}`}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:3}}><span style={{fontSize:13,fontWeight:500,color:C.white}}>{t.title}</span><span style={{fontSize:10,fontWeight:600,padding:"2px 6px",borderRadius:4,background:d<=3?C.redDim:C.primaryDim,color:d<=3?C.red:C.primary,fontFamily:"'Baloo 2',sans-serif"}}>{d===0?"Today":`${d}d`}</span></div>
-          <div style={{display:"flex",alignItems:"center",gap:8}}><div style={{flex:1,height:4,background:"rgba(16,23,58,0.06)",borderRadius:2,overflow:"hidden"}}><div style={{height:"100%",width:`${(dn/t.assignedTo.length)*100}%`,background:C.primary,borderRadius:2}}/></div><span style={{fontSize:10,color:C.muted,fontFamily:"'Baloo 2',sans-serif"}}>{dn}/{t.assignedTo.length}</span></div>
-        </div>;})}
       </div>
     </div>
   </div>;
