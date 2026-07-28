@@ -355,11 +355,11 @@ function MetricRow({officer,metric,date,logM,goals}){
   const[dirty,setDirty]=useState(false);
   const s=(k,v)=>{setF(p=>({...p,[k]:v}));setDirty(true);};
   const save=()=>{logM(officer.id,date,f);setDirty(false);};
-  return<div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 10px",borderRadius:7,background:dirty?"rgba(212,168,75,0.04)":"transparent",border:`1px solid ${dirty?"rgba(212,168,75,0.15)":"rgba(16,23,58,0.03)"}`,marginBottom:2,flexWrap:"wrap"}}>
+  return<div style={{display:"flex",alignItems:"center",gap:10,padding:"9px 10px",borderRadius:7,background:dirty?"rgba(212,168,75,0.04)":"transparent",border:`1px solid ${dirty?"rgba(212,168,75,0.15)":"rgba(16,23,58,0.03)"}`,marginBottom:2,flexWrap:"wrap"}}>
     <div style={{width:26,height:26,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:C.white,background:`linear-gradient(135deg,${C.primary}30,${C.accent}30)`,flexShrink:0}}>{officer.avatar}</div>
     <span style={{fontSize:12,color:C.white,fontWeight:500,minWidth:100}}>{officer.name}</span>
-    {FUNNEL_FIELDS.map(ff=>{const goal=goals?.[ff.key]??0;const hit=f[ff.key]>=goal;return<div key={ff.key} style={{width:56,textAlign:"center"}}>
-      <input type="number" min="0" value={f[ff.key]} onChange={e=>s(ff.key,Math.max(0,Number(e.target.value)||0))} style={{...sS,width:56,textAlign:"center",padding:"7px 4px",borderColor:hit?"rgba(76,175,125,0.4)":C.border,background:hit?"rgba(76,175,125,0.06)":sS.background,color:hit?C.green:C.text}}/>
+    {FUNNEL_FIELDS.map(ff=>{const goal=goals?.[ff.key]??0;const hit=f[ff.key]>=goal;return<div key={ff.key} style={{width:84,textAlign:"center"}}>
+      <input type="number" min="0" value={f[ff.key]} onChange={e=>s(ff.key,Math.max(0,Number(e.target.value)||0))} style={{...sS,width:84,textAlign:"center",padding:"7px 4px",borderColor:hit?"rgba(76,175,125,0.4)":C.border,background:hit?"rgba(76,175,125,0.06)":sS.background,color:hit?C.green:C.text}}/>
     </div>;})}
     <input value={f.notes} onChange={e=>s("notes",e.target.value)} placeholder="Names / notes of people called..." style={{...sI,flex:1,minWidth:160,padding:"7px 9px",fontSize:12}}/>
     {dirty&&<button onClick={save} style={{background:C.primary,border:"none",color:"#fff",fontSize:11,fontWeight:600,padding:"6px 12px",borderRadius:6,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>Save</button>}
@@ -387,8 +387,11 @@ function ActivityPage({data,date,setDate,logM,setModal,dDate,setDDate,togD,setDN
       {!isT&&<button onClick={()=>setDate(TODAY)} style={{marginLeft:6,background:C.primaryDim,border:`1px solid rgba(45,183,166,0.2)`,borderRadius:6,padding:"4px 10px",color:C.primary,fontSize:11,cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>Today</button>}
     </div>
     <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:"12px 14px",marginBottom:28}}>
-      <div style={{display:"flex",gap:8,padding:"0 10px 6px",fontSize:9,color:C.dim,textTransform:"uppercase",letterSpacing:0.6,fontFamily:"'Baloo 2',sans-serif"}}>
-        <div style={{width:26}}/><div style={{minWidth:100}}>Officer</div>{FUNNEL_FIELDS.map(ff=><div key={ff.key} style={{width:56,textAlign:"center"}}>{ff.label}<div style={{fontSize:9,color:C.dim,textTransform:"none",fontWeight:400,marginTop:1}}>Goal {goals[ff.key]??"–"}</div></div>)}<div style={{flex:1,minWidth:160}}>Notes</div>
+      <div style={{display:"flex",alignItems:"flex-end",gap:10,padding:"0 10px 10px",marginBottom:6,borderBottom:`1px solid ${C.border}`,fontSize:10,color:C.dim,textTransform:"uppercase",letterSpacing:0.6,fontFamily:"'Baloo 2',sans-serif"}}>
+        <div style={{width:26}}/><div style={{minWidth:100}}>Officer</div>{FUNNEL_FIELDS.map(ff=><div key={ff.key} style={{width:84,textAlign:"center"}}>
+          <div>{ff.label}</div>
+          <div style={{display:"inline-block",marginTop:4,fontSize:10,color:C.primary,background:C.primaryDim,textTransform:"none",fontWeight:700,padding:"1px 7px",borderRadius:20,fontFamily:"'Baloo 2',sans-serif"}}>Goal {goals[ff.key]??"–"}</div>
+        </div>)}<div style={{flex:1,minWidth:160}}>Notes</div>
       </div>
       {data.officers.length===0&&<p style={{color:C.muted,fontSize:13,padding:"6px 10px"}}>Add loan officers to start tracking activity.</p>}
       {data.officers.map(o=>{const metric=data.metrics.find(m=>m.officerId===o.id&&m.date===date);return<MetricRow key={`${o.id}-${date}`} officer={o} metric={metric} date={date} logM={logM} goals={goals}/>;})}
