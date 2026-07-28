@@ -335,6 +335,8 @@ function DailyPage({data,date,setDate,togD,setDN,setModal,delDT}){
 const FUNNEL_FIELDS=[
   {key:"calls",label:"Calls"},{key:"meetings",label:"Meetings"},{key:"applications",label:"Applications"},
   {key:"preapprovals",label:"Preapprovals"},{key:"closed",label:"Closed Loans"},
+  {key:"creditPulls",label:"Credit Pulls"},{key:"faceToFace",label:"Face-to-Face Meetings"},
+  {key:"followUpCalls",label:"Follow-Up Calls"},{key:"openHouses",label:"Open Houses"},
 ];
 const pctOf=(n,d)=>d?Math.round((n/d)*100):0;
 const inPeriod=(dateStr,period)=>{
@@ -351,7 +353,7 @@ function sumMetrics(list){return list.reduce((s,m)=>({calls:s.calls+m.calls,meet
 const PERIOD_WORKDAYS={week:5,month:20,all:null};
 
 function MetricRow({officer,metric,date,logM,goals}){
-  const[f,setF]=useState({calls:metric?.calls||0,meetings:metric?.meetings||0,applications:metric?.applications||0,preapprovals:metric?.preapprovals||0,closed:metric?.closed||0,notes:metric?.notes||""});
+  const[f,setF]=useState({calls:metric?.calls||0,meetings:metric?.meetings||0,applications:metric?.applications||0,preapprovals:metric?.preapprovals||0,closed:metric?.closed||0,creditPulls:metric?.creditPulls||0,faceToFace:metric?.faceToFace||0,followUpCalls:metric?.followUpCalls||0,openHouses:metric?.openHouses||0,notes:metric?.notes||""});
   const[dirty,setDirty]=useState(false);
   const s=(k,v)=>{setF(p=>({...p,[k]:v}));setDirty(true);};
   const save=()=>{logM(officer.id,date,f);setDirty(false);};
@@ -643,7 +645,7 @@ function AddDailyModal({data,task,onClose,onSave}){
 }
 
 function GoalsModal({goals,onClose,onSave}){
-  const[f,setF]=useState({calls:goals.calls,meetings:goals.meetings,applications:goals.applications,preapprovals:goals.preapprovals,closed:goals.closed});
+  const[f,setF]=useState({calls:goals.calls,meetings:goals.meetings,applications:goals.applications,preapprovals:goals.preapprovals,closed:goals.closed,creditPulls:goals.creditPulls,faceToFace:goals.faceToFace,followUpCalls:goals.followUpCalls,openHouses:goals.openHouses});
   const s=(k,v)=>setF(p=>({...p,[k]:Math.max(0,Number(v)||0)}));
   return<Modal title="Edit Daily Goals" onClose={onClose} width={420}>
     <p style={{margin:"0 0 16px",fontSize:12,color:C.muted,lineHeight:1.5}}>Same daily target for every loan officer. Week/Month goals shown in Activity are this number × 5 workdays (week) or × 20 workdays (month).</p>

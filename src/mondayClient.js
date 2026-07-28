@@ -41,11 +41,13 @@ const COL = {
   applications: "numeric_mm5bdg33", preapprovals: "numeric_mm5bte7", closed: "numeric_mm5bkvm6",
   notes: "long_text_mm5bd6ej", goalCalls: "numeric_mm5bwv76", goalMeetings: "numeric_mm5b8w7j",
   goalApplications: "numeric_mm5bgbs9", goalPreapprovals: "numeric_mm5bfbhp", goalClosed: "numeric_mm5bnr79",
+  creditPulls: "numeric_mm5pr2q0", faceToFace: "numeric_mm5p658g", followUpCalls: "numeric_mm5p58hf", openHouses: "numeric_mm5pkkpa",
+  goalCreditPulls: "numeric_mm5pv5pm", goalFaceToFace: "numeric_mm5pq582", goalFollowUpCalls: "numeric_mm5phv0b", goalOpenHouses: "numeric_mm5pmcnk",
 };
 
 const LOG_TYPE = { completion: "Task Completion", checkin: "Daily Check-in", metric: "Daily Metric" };
 const DEFAULT_TEAMS = ["Purchase", "Refinance", "FHA/VA", "Jumbo", "USDA"];
-const DEFAULT_GOALS = { calls: 5, meetings: 3, applications: 7, preapprovals: 2, closed: 1 };
+const DEFAULT_GOALS = { calls: 5, meetings: 3, applications: 7, preapprovals: 2, closed: 1, creditPulls: 0, faceToFace: 1, followUpCalls: 1, openHouses: 0.4 };
 
 async function gql(query, variables = {}) {
   const res = await fetch(API_URL, {
@@ -191,6 +193,10 @@ export async function fetchAllData() {
     applications: Number(gc[COL.goalApplications]?.number ?? DEFAULT_GOALS.applications),
     preapprovals: Number(gc[COL.goalPreapprovals]?.number ?? DEFAULT_GOALS.preapprovals),
     closed: Number(gc[COL.goalClosed]?.number ?? DEFAULT_GOALS.closed),
+    creditPulls: Number(gc[COL.goalCreditPulls]?.number ?? DEFAULT_GOALS.creditPulls),
+    faceToFace: Number(gc[COL.goalFaceToFace]?.number ?? DEFAULT_GOALS.faceToFace),
+    followUpCalls: Number(gc[COL.goalFollowUpCalls]?.number ?? DEFAULT_GOALS.followUpCalls),
+    openHouses: Number(gc[COL.goalOpenHouses]?.number ?? DEFAULT_GOALS.openHouses),
   };
 
   const metrics = metricItems
@@ -206,6 +212,10 @@ export async function fetchAllData() {
         applications: Number(c[COL.applications]?.number || 0),
         preapprovals: Number(c[COL.preapprovals]?.number || 0),
         closed: Number(c[COL.closed]?.number || 0),
+        creditPulls: Number(c[COL.creditPulls]?.number || 0),
+        faceToFace: Number(c[COL.faceToFace]?.number || 0),
+        followUpCalls: Number(c[COL.followUpCalls]?.number || 0),
+        openHouses: Number(c[COL.openHouses]?.number || 0),
         notes: c[COL.notes]?.text || "",
       };
     })
@@ -393,6 +403,10 @@ export const monday = {
       [COL.applications]: Number(m.applications) || 0,
       [COL.preapprovals]: Number(m.preapprovals) || 0,
       [COL.closed]: Number(m.closed) || 0,
+      [COL.creditPulls]: Number(m.creditPulls) || 0,
+      [COL.faceToFace]: Number(m.faceToFace) || 0,
+      [COL.followUpCalls]: Number(m.followUpCalls) || 0,
+      [COL.openHouses]: Number(m.openHouses) || 0,
       [COL.notes]: m.notes || "",
     };
     if (existingId) {
@@ -416,6 +430,10 @@ export const monday = {
       [COL.goalApplications]: Number(goals.applications) || 0,
       [COL.goalPreapprovals]: Number(goals.preapprovals) || 0,
       [COL.goalClosed]: Number(goals.closed) || 0,
+      [COL.goalCreditPulls]: Number(goals.creditPulls) || 0,
+      [COL.goalFaceToFace]: Number(goals.faceToFace) || 0,
+      [COL.goalFollowUpCalls]: Number(goals.followUpCalls) || 0,
+      [COL.goalOpenHouses]: Number(goals.openHouses) || 0,
     };
     if (itemId) {
       await updateItem(itemId, cv);
