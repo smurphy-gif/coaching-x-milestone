@@ -536,6 +536,68 @@ function CalendarPage(){
   </div>;
 }
 
+// Strips a trailing " — Mon D, YYYY" style date suffix from a recap title
+// (so we don't show the same date twice when we fall back to the title).
+function stripRecapDateSuffix(title){
+  return (title||"").replace(/\s+[—-]\s+[A-Z][a-z]{2}\s+\d{1,2},\s+\d{4}\s*$/,"").trim();
+}
+
+// Turns "**bold**" spans inside a line of recap text into real <strong> nodes.
+function inlineBold(str,keyPrefix){
+  return String(str).split(/\*\*(.*?)\*\*/g).map((p,i)=>i%2===1?<strong key={keyPrefix+"-"+i} style={{color:C.text}}>{p}</strong>:<span key={keyPrefix+"-"+i}>{p}</span>);
+}
+
+// Lightweight markdown parser for Roam-style recap summaries: turns "### Heading"
+// lines into section labels and consecutive "- item" lines into real bullet lists.
+function parseRecapBlocks(text){
+  const lines=String(text||"").split("\n");
+  const blocks=[];let curBullets=null;
+  for(const raw of lines){
+    const line=raw.trim();
+    if(!line){curBullets=null;continue;}
+    const h=line.match(/^#{2,4}\s+(.*)/);
+    if(h){curBullets=null;blocks.push({type:"heading",content:h[1]});continue;}
+    const b=line.match(/^[-*]\s+(.*)/);
+    if(b){
+      if(!curBullets){curBullets={type:"bullets",items:[]};blocks.push(curBullets);}
+      curBullets.items.push(b[1]);
+      continue;
+    }
+    curBullets=null;
+    blocks.push({type:"para",content:line});
+  }
+  return blocks;
+}
+
+function RecapBlocks({text}){
+  const blocks=parseRecapBlocks(text);
+  return<>{blocks.map((b,i)=>{
+    if(b.type==="heading")return<div key={i} style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:.4,color:C.dim,margin:i?"12px 0 5px":"0 0 5px"}}>{b.content}</div>;
+    if(b.type==="bullets")return<ul key={i} style={{margin:"0 0 4px",paddingLeft:16}}>{b.items.map((it,j)=><li key={j} style={{fontSize:12,color:C.muted,lineHeight:1.6,marginBottom:3}}>{inlineBold(it,i+"-"+j)}</li>)}</ul>;
+    return<p key={i} style={{margin:"0 0 8px",fontSize:12,color:C.muted,lineHeight:1.6}}>{inlineBold(b.content,"p"+i)}</p>;
+  })}</>;
+}
+
+function RecapCard({r,o}){
+  const[open,setOpen]=useState(false);
+  const title=o?.name||stripRecapDateSuffix(r.title)||"Coaching Call Recap";
+  return<div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:16}}>
+    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+      <div style={{width:28,height:28,minWidth:28,borderRadius:"50%",background:C.primaryDim,color:C.primary,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700}}>{o?mkA(o.name):I.people}</div>
+      <div>
+        <div style={{fontSize:13,fontWeight:600,color:C.text}}>{title}</div>
+        <div style={{fontSize:10,color:C.dim}}>{r.date?fD(r.date):r.createdAt?fD(r.createdAt):""}</div>
+      </div>
+    </div>
+    <div style={{maxHeight:open?"none":52,overflow:"hidden",position:"relative"}}>
+      <RecapBlocks text={r.text}/>
+      {!open&&<div style={{position:"absolute",bottom:0,left:0,right:0,height:24,background:`linear-gradient(transparent,${C.surface})`}}/>}
+    </div>
+    <button onClick={()=>setOpen(v=>!v)} style={{background:"none",border:"none",padding:0,margin:"2px 0 10px",color:C.primary,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{open?"Show less ▲":"Show more ▾"}</button>
+    {r.meetingUrl&&<a href={r.meetingUrl} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",gap:5,background:"rgba(16,23,58,0.03)",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 10px",color:C.primary,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",textDecoration:"none",width:"fit-content"}}>{I.video} View call</a>}
+  </div>;
+}
+
 function RecapsPage({data}){
   const recaps=data.recaps||[];
   return<div>
@@ -544,17 +606,7 @@ function RecapsPage({data}){
     {recaps.length===0?
       <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:"32px 16px",textAlign:"center",color:C.muted,fontSize:13}}>No recaps yet. Once a coaching call on the Calendar tab finishes, its recap will appear here automatically.</div>
     :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))",gap:12}}>
-      {recaps.map(r=>{const o=data.officers.find(x=>x.id===r.officerId);return<div key={r.id} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:16}}>
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-          <div style={{width:28,height:28,borderRadius:"50%",background:C.primaryDim,color:C.primary,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700}}>{o?mkA(o.name):"?"}</div>
-          <div>
-            <div style={{fontSize:13,fontWeight:600,color:C.text}}>{o?.name||"Unknown officer"}</div>
-            <div style={{fontSize:10,color:C.dim}}>{r.date?fD(r.date):r.createdAt?fD(r.createdAt):""}</div>
-          </div>
-        </div>
-        <p style={{margin:"0 0 8px",fontSize:12,color:C.muted,lineHeight:1.6,whiteSpace:"pre-line"}}>{r.text}</p>
-        {r.meetingUrl&&<a href={r.meetingUrl} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",gap:5,background:"rgba(16,23,58,0.03)",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 10px",color:C.primary,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",textDecoration:"none",width:"fit-content"}}>{I.video} View call</a>}
-      </div>;})}
+      {recaps.map(r=>{const o=data.officers.find(x=>x.id===r.officerId);return<RecapCard key={r.id} r={r} o={o}/>;})}
     </div>}
   </div>;
 }
