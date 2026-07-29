@@ -178,6 +178,10 @@ export default function App(){
           <div style={{fontSize:9,color:C.dim,fontFamily:"'Baloo 2',sans-serif",letterSpacing:0.3}}>Milestone Mortgage Solutions</div>
         </div>
 
+        <div style={{padding:"14px 20px 4px"}}>
+          <a href="https://www.milestone-hub.com/rookie-lo-blueprint" target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,padding:"10px 14px",borderRadius:8,background:`linear-gradient(135deg,${C.primary},${C.accent})`,color:"#fff",fontSize:12,fontWeight:700,textDecoration:"none",fontFamily:"'Baloo 2',sans-serif",letterSpacing:0.3,boxShadow:"0 3px 10px rgba(78,161,240,0.35)"}}>{I.trend} Rookie LO Blueprint</a>
+        </div>
+
         <div style={{padding:"10px 0",flex:1}}>
           {[
             {key:"dashboard",icon:I.dashboard,label:"Dashboard"},
@@ -244,6 +248,9 @@ function Dashboard({data,g,oS,goToOfficer,dSt}){
   const lastRanks={};[...board].sort((a,b)=>b.lastWeekPts-a.lastWeekPts).forEach((r,i)=>{lastRanks[r.o.id]=i+1;});
   const podium=ranked.slice(0,3);
   return<div>
+    <div style={{background:`linear-gradient(135deg,${C.primary},${C.accent})`,borderRadius:12,padding:"16px 22px",marginBottom:20,boxShadow:"0 4px 14px rgba(78,161,240,0.3)"}}>
+      <p style={{margin:0,fontSize:15,fontWeight:700,color:"#fff",fontFamily:"'Baloo 2',sans-serif",fontStyle:"italic",lineHeight:1.4}}>"Every rookie becomes a champion — one daily task at a time."</p>
+    </div>
     <div style={{marginBottom:24}}><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Baloo 2',sans-serif"}}>Coaching Dashboard</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>Milestone Mortgage Solutions — Team Progress</p></div>
     <div style={{display:"grid",gridTemplateColumns:"1fr",gap:16}}>
       <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:20}}>
