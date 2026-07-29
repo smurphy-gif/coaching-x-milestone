@@ -42,6 +42,7 @@ const I={
   video:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>,
   doc:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>,
   trend:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>,
+  star:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
 };
 
 const dU=(d)=>Math.ceil((new Date(d)-new Date(TODAY))/864e5);
@@ -153,6 +154,8 @@ export default function App(){
   async function saveGoals(g){try{const id=await monday.updateGoals(data.goals._itemId,g);setData(p=>({...p,goals:{...g,_itemId:id}}));}catch(e){console.error("saveGoals failed",e);}}
   async function addRecap(r){try{const id=await monday.createRecap(r);setData(p=>({...p,recaps:[{...r,id,createdAt:TODAY},...p.recaps]}));}catch(e){console.error("addRecap failed",e);}}
   async function delRecap(id){try{await monday.deleteRecap(id);setData(p=>({...p,recaps:p.recaps.filter(r=>r.id!==id)}));}catch(e){console.error("delRecap failed",e);}}
+  async function addWin(w){try{const id=await monday.createWin(w);setData(p=>({...p,wins:[{...w,id,createdAt:TODAY},...p.wins]}));}catch(e){console.error("addWin failed",e);}}
+  async function delWin(id){try{await monday.deleteWin(id);setData(p=>({...p,wins:p.wins.filter(w=>w.id!==id)}));}catch(e){console.error("delWin failed",e);}}
 
   if(loadError)return<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:C.bg,color:C.text,fontFamily:"'Inter',sans-serif",flexDirection:"column",gap:10,padding:24,textAlign:"center"}}><p style={{color:C.red,fontWeight:600}}>Couldn't load data from Monday.com</p><p style={{opacity:0.6,fontSize:12,maxWidth:420}}>{loadError}</p><p style={{opacity:0.5,fontSize:12}}>Check your .env file has a valid VITE_MONDAY_API_TOKEN and board IDs, then refresh.</p></div>;
   if(!loaded||!data)return<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:C.bg,color:C.text,fontFamily:"'Inter',sans-serif"}}><p style={{opacity:0.6}}>Loading from Monday...</p></div>;
@@ -189,6 +192,7 @@ export default function App(){
             {key:"dashboard",icon:I.dashboard,label:"Dashboard"},
             {key:"officers",icon:I.people,label:"Loan Officers"},
             {key:"activity",icon:I.trend,label:"Activity"},
+            {key:"wins",icon:I.star,label:"Weekly Wins"},
             {key:"resources",icon:I.resources,label:"Resources"},
             {key:"calendar",icon:I.cal,label:"Calendar"},
             {key:"recaps",icon:I.msg,label:"Recaps"},
@@ -217,6 +221,8 @@ export default function App(){
         <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
         <section id="activity"><ActivityPage data={data} date={aDate} setDate={setADate} logM={logM} setModal={setModal} dDate={dDate} setDDate={setDDate} togD={togD} setDN={setDN} delDT={delDT} tF={tF} setTF={setTF} toggle={toggleC}/></section>
         <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
+        <section id="wins"><WinsPage data={data} setModal={setModal}/></section>
+        <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
         <section id="resources"><ResourcesPage data={data} filter={rF} setFilter={setRF} setModal={setModal}/></section>
         <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
         <section id="calendar"><CalendarPage/></section>
@@ -239,6 +245,8 @@ export default function App(){
       {modal==="edit-goals"&&<GoalsModal goals={data.goals} onClose={()=>setModal(null)} onSave={saveGoals}/>}
       {modal==="add-recap"&&<AddRecapModal data={data} onClose={()=>setModal(null)} onSave={addRecap}/>}
       {modal?.type==="confirm-delete-recap"&&<Confirm msg="Delete this recap?" sub="This can't be undone." onNo={()=>setModal(null)} onOk={()=>{delRecap(modal.recap.id);setModal(null);}}/>}
+      {modal==="add-win"&&<AddWinModal data={data} onClose={()=>setModal(null)} onSave={addWin}/>}
+      {modal?.type==="confirm-delete-win"&&<Confirm msg="Delete this win?" sub="This can't be undone." onNo={()=>setModal(null)} onOk={()=>{delWin(modal.win.id);setModal(null);}}/>}
     </div>
   );
 }
@@ -630,6 +638,38 @@ function RecapsPage({data,setModal}){
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// WEEKLY WINS
+// ═══════════════════════════════════════════════════════════════════════════════
+function WinCard({w,o,setModal}){
+  return<div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:16,position:"relative"}}>
+    <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
+      <div style={{width:28,height:28,minWidth:28,borderRadius:"50%",background:`linear-gradient(135deg,${C.gold},${C.primary})`,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700}}>{o?mkA(o.name):I.star}</div>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontSize:13,fontWeight:600,color:C.text,display:"flex",alignItems:"center",gap:5}}>{o?.name||"Team Win"}<span style={{fontSize:11}}>🏆</span></div>
+        <div style={{fontSize:10,color:C.dim}}>{w.date?fD(w.date):w.createdAt?fD(w.createdAt):""}</div>
+      </div>
+      {setModal&&<button onClick={()=>setModal({type:"confirm-delete-win",win:w})} style={{background:"none",border:"none",color:C.dim,cursor:"pointer",padding:2,opacity:0.6}}>{I.trash}</button>}
+    </div>
+    <p style={{margin:"10px 0 0",fontSize:12,color:C.muted,lineHeight:1.6,whiteSpace:"pre-line"}}>{w.text}</p>
+  </div>;
+}
+
+function WinsPage({data,setModal}){
+  const wins=data.wins||[];
+  return<div>
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,marginBottom:20,flexWrap:"wrap"}}>
+      <div><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Baloo 2',sans-serif"}}>Weekly Wins</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>A place to celebrate what's going well — big or small. Share a win for the week.</p></div>
+      <button onClick={()=>setModal("add-win")} style={{display:"flex",alignItems:"center",gap:6,padding:"9px 14px",borderRadius:8,border:"none",background:C.gold,color:"#fff",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>{I.plus} Share a Win</button>
+    </div>
+    {wins.length===0?
+      <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:"32px 16px",textAlign:"center",color:C.muted,fontSize:13}}>No wins shared yet. Click "Share a Win" to post the first one.</div>
+    :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}}>
+      {wins.map(w=>{const o=data.officers.find(x=>x.id===w.officerId);return<WinCard key={w.id} w={w} o={o} setModal={setModal}/>;})}
+    </div>}
+  </div>;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // MODALS
 // ═══════════════════════════════════════════════════════════════════════════════
 function OfficerFormModal({data,officer,onClose,onSave}){
@@ -674,6 +714,20 @@ function AddRecapModal({data,onClose,onSave}){
     <div style={{marginBottom:12}}><label style={sL}>Recap Notes *</label><textarea value={f.text} onChange={e=>s("text",e.target.value)} rows={6} placeholder={"### Key Topics\n- What we covered\n\n### Action Items\n- Next steps"} style={{...sI,resize:"vertical"}}/></div>
     <div style={{marginBottom:16}}><label style={sL}>Video Link</label><input value={f.meetingUrl} onChange={e=>s("meetingUrl",e.target.value)} placeholder="Paste the Roam / Zoom / Google Meet recording link" style={sI}/><p style={{margin:"6px 0 0",fontSize:11,color:C.dim}}>Shows as a "View call" button on the recap card.</p></div>
     <button onClick={()=>{if(ok){onSave({title:f.title.trim()||`Coaching Call Recap — ${fD(f.date)}`,officerId:f.officerId,date:f.date,text:f.text.trim(),meetingUrl:f.meetingUrl.trim()});onClose();}}} style={bP(ok)}>Add Recap</button>
+  </Modal>;
+}
+
+function AddWinModal({data,onClose,onSave}){
+  const[f,setF]=useState({officerId:"",date:TODAY,text:""});
+  const s=(k,v)=>setF(p=>({...p,[k]:v}));
+  const ok=f.text.trim().length>0;
+  return<Modal title="Share a Win" onClose={onClose} width={420}>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+      <div><label style={sL}>Loan Officer</label><select value={f.officerId} onChange={e=>s("officerId",e.target.value)} style={sS}><option value="">Team Win</option>{data.officers.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></div>
+      <div><label style={sL}>Week Of</label><input type="date" value={f.date} onChange={e=>s("date",e.target.value)} style={sS}/></div>
+    </div>
+    <div style={{marginBottom:16}}><label style={sL}>What's the win? *</label><textarea value={f.text} onChange={e=>s("text",e.target.value)} rows={4} placeholder="e.g. Closed my first jumbo loan this week!" style={{...sI,resize:"vertical"}} autoFocus/></div>
+    <button onClick={()=>{if(ok){onSave({title:`Win — ${fD(f.date)}`,officerId:f.officerId,date:f.date,text:f.text.trim()});onClose();}}} style={bP(ok)}>Share Win</button>
   </Modal>;
 }
 

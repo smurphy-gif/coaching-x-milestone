@@ -27,6 +27,7 @@ export const GROUP = {
   messages: "group_mm5btr8h",
   dailyLog: "group_mm5br6sj",
   recaps: "group_mm5py6av",
+  wins: "group_mm5qpa47",
 };
 
 // Column ids — created once when the board was set up. If you rebuild the
@@ -237,7 +238,20 @@ export async function fetchAllData() {
     })
     .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 
-  return { officers, resources, tasks, completions, teams, dailyTasks, dailyCompletions, messages, metrics, goals, recaps };
+  const wins = inGroup(GROUP.wins)
+    .map((it) => {
+      const c = colMap(it);
+      return {
+        id: it.id, title: it.name,
+        officerId: linkedIds(c[COL.officer])[0] || "",
+        date: c[COL.date]?.date || "",
+        text: c[COL.description]?.text || "",
+        createdAt: (it.created_at || "").slice(0, 10),
+      };
+    })
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+
+  return { officers, resources, tasks, completions, teams, dailyTasks, dailyCompletions, messages, metrics, goals, recaps, wins };
 }
 
 // ─── Mutations ────────────────────────────────────────────────────────────
@@ -394,6 +408,14 @@ export const monday = {
     }, true);
   },
   async deleteRecap(id) { await deleteItem(id); },
+  async createWin(w) {
+    return createItem(GROUP.wins, w.title, {
+      ...(w.officerId ? { [COL.officer]: { item_ids: [Number(w.officerId)] } } : {}),
+      [COL.date]: { date: w.date },
+      [COL.description]: w.text || "",
+    }, true);
+  },
+  async deleteWin(id) { await deleteItem(id); },
   // Upsert-style: pass existingId if a metrics row already exists for this
   // officer+date (caller looks this up locally), otherwise a new row is made.
   async logMetrics(existingId, officerId, date, m) {
