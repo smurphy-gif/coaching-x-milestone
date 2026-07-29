@@ -252,8 +252,10 @@ function Dashboard({data,g,oS,goToOfficer,dSt}){
   const lastRanks={};[...board].sort((a,b)=>b.lastWeekPts-a.lastWeekPts).forEach((r,i)=>{lastRanks[r.o.id]=i+1;});
   const podium=ranked.slice(0,3);
   return<div>
-    <div style={{background:`linear-gradient(135deg,${C.primary},${C.accent})`,borderRadius:12,padding:"16px 22px",marginBottom:20,boxShadow:"0 4px 14px rgba(78,161,240,0.3)"}}>
-      <p style={{margin:0,fontSize:15,fontWeight:700,color:"#fff",fontFamily:"'Baloo 2',sans-serif",fontStyle:"italic",lineHeight:1.4}}>"Every rookie becomes a champion — one daily task at a time."</p>
+    <div style={{position:"relative",overflow:"hidden",background:`linear-gradient(120deg,${C.accent},${C.primary} 55%,${C.gold})`,borderRadius:14,padding:"22px 28px",marginBottom:22,boxShadow:`0 8px 28px rgba(46,134,224,0.4), 0 2px 8px rgba(201,147,46,0.25)`,border:"1px solid rgba(255,255,255,0.25)"}}>
+      <div style={{position:"absolute",top:-30,right:10,fontSize:130,lineHeight:1,color:"rgba(255,255,255,0.14)",fontFamily:"'Baloo 2',sans-serif",fontWeight:800,pointerEvents:"none"}}>"</div>
+      <div style={{position:"relative",fontSize:10,fontWeight:800,color:"rgba(255,255,255,0.85)",textTransform:"uppercase",letterSpacing:1.5,fontFamily:"'Baloo 2',sans-serif",marginBottom:6}}>⚡ Daily Motivation</div>
+      <p style={{position:"relative",margin:0,fontSize:19,fontWeight:800,color:"#fff",fontFamily:"'Baloo 2',sans-serif",fontStyle:"italic",lineHeight:1.4,textShadow:"0 2px 6px rgba(0,0,0,0.2)"}}>"Success is the sum of small efforts, repeated day in and day out."<span style={{display:"block",marginTop:6,fontSize:13,fontWeight:700,fontStyle:"normal",color:"rgba(255,255,255,0.9)",letterSpacing:0.3}}>— Robert Collier</span></p>
     </div>
     <div style={{marginBottom:24}}><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Baloo 2',sans-serif"}}>Coaching Dashboard</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>Milestone Mortgage Solutions — Team Progress</p></div>
     <div style={{display:"grid",gridTemplateColumns:"1fr",gap:16}}>
