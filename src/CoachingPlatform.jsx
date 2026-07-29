@@ -640,17 +640,30 @@ function RecapsPage({data,setModal}){
 // ═══════════════════════════════════════════════════════════════════════════════
 // WEEKLY WINS
 // ═══════════════════════════════════════════════════════════════════════════════
-function WinCard({w,o,setModal}){
-  return<div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:16,position:"relative"}}>
-    <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
-      <div style={{width:28,height:28,minWidth:28,borderRadius:"50%",background:`linear-gradient(135deg,${C.gold},${C.primary})`,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700}}>{o?mkA(o.name):I.star}</div>
+const WIN_STYLES=[
+  {bg:"linear-gradient(135deg,#FFF6DA,#FFE7A8)",accent:"#C9932E",ring:"#FFD24D",emoji:"🏆"},
+  {bg:"linear-gradient(135deg,#E6F4FF,#C2E4FF)",accent:"#2E86E0",ring:"#4EA1F0",emoji:"🚀"},
+  {bg:"linear-gradient(135deg,#FFEAEF,#FFD1DE)",accent:"#D6407A",ring:"#FF8FAE",emoji:"🎉"},
+  {bg:"linear-gradient(135deg,#E9FBF0,#C7F3D8)",accent:"#1F9D5C",ring:"#4CD787",emoji:"⭐"},
+  {bg:"linear-gradient(135deg,#F3ECFF,#E1CFFF)",accent:"#7C56C4",ring:"#B996F0",emoji:"🔥"},
+  {bg:"linear-gradient(135deg,#FFF0E4,#FFDAB8)",accent:"#E07C2D",ring:"#FFB273",emoji:"💥"},
+];
+function winStyleFor(w){let h=0;const s=w.id||w.officerId||"x";for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return WIN_STYLES[h%WIN_STYLES.length];}
+
+function WinCard({w,o,setModal,i}){
+  const st=winStyleFor(w);
+  const rot=i%2===0?-1.2:1.2;
+  return<div style={{background:st.bg,border:`2px solid ${st.ring}55`,borderRadius:16,padding:18,position:"relative",overflow:"hidden",boxShadow:`0 6px 16px ${st.ring}33`,transform:`rotate(${rot}deg)`,transition:"transform 0.15s"}} onMouseEnter={e=>e.currentTarget.style.transform="rotate(0deg) scale(1.02)"} onMouseLeave={e=>e.currentTarget.style.transform=`rotate(${rot}deg)`}>
+    <div style={{position:"absolute",top:-14,right:-6,fontSize:64,opacity:0.18,pointerEvents:"none",lineHeight:1}}>{st.emoji}</div>
+    <div style={{display:"flex",alignItems:"flex-start",gap:9,position:"relative"}}>
+      <div style={{width:34,height:34,minWidth:34,borderRadius:"50%",background:`linear-gradient(135deg,${st.accent},${st.ring})`,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800,boxShadow:`0 2px 8px ${st.ring}66`}}>{o?mkA(o.name):I.star}</div>
       <div style={{flex:1,minWidth:0}}>
-        <div style={{fontSize:13,fontWeight:600,color:C.text,display:"flex",alignItems:"center",gap:5}}>{o?.name||"Team Win"}<span style={{fontSize:11}}>🏆</span></div>
-        <div style={{fontSize:10,color:C.dim}}>{w.date?fD(w.date):w.createdAt?fD(w.createdAt):""}</div>
+        <div style={{fontSize:14,fontWeight:800,color:st.accent,display:"flex",alignItems:"center",gap:5,fontFamily:"'Baloo 2',sans-serif"}}>{o?.name||"Team Win"}<span style={{fontSize:13}}>{st.emoji}</span></div>
+        <div style={{fontSize:10,color:C.dim,fontWeight:600}}>{w.date?fD(w.date):w.createdAt?fD(w.createdAt):""}</div>
       </div>
-      {setModal&&<button onClick={()=>setModal({type:"confirm-delete-win",win:w})} style={{background:"none",border:"none",color:C.dim,cursor:"pointer",padding:2,opacity:0.6}}>{I.trash}</button>}
+      {setModal&&<button onClick={()=>setModal({type:"confirm-delete-win",win:w})} style={{background:"rgba(255,255,255,0.6)",border:"none",borderRadius:6,color:st.accent,cursor:"pointer",padding:4,opacity:0.7}}>{I.trash}</button>}
     </div>
-    <p style={{margin:"10px 0 0",fontSize:12,color:C.muted,lineHeight:1.6,whiteSpace:"pre-line"}}>{w.text}</p>
+    <p style={{margin:"12px 0 0",fontSize:13,color:C.text,fontWeight:600,lineHeight:1.6,whiteSpace:"pre-line",position:"relative"}}>{w.text}</p>
   </div>;
 }
 
@@ -658,13 +671,13 @@ function WinsPage({data,setModal}){
   const wins=data.wins||[];
   return<div>
     <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,marginBottom:20,flexWrap:"wrap"}}>
-      <div><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Baloo 2',sans-serif"}}>Weekly Wins</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>A place to celebrate what's going well — big or small. Share a win for the week.</p></div>
-      <button onClick={()=>setModal("add-win")} style={{display:"flex",alignItems:"center",gap:6,padding:"9px 14px",borderRadius:8,border:"none",background:C.gold,color:"#fff",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>{I.plus} Share a Win</button>
+      <div><h1 style={{fontSize:24,fontWeight:800,color:C.white,margin:0,fontFamily:"'Baloo 2',sans-serif",display:"flex",alignItems:"center",gap:8}}>Weekly Wins <span style={{fontSize:20}}>🎉</span></h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>A place to celebrate what's going well — big or small. Share a win for the week!</p></div>
+      <button onClick={()=>setModal("add-win")} style={{display:"flex",alignItems:"center",gap:6,padding:"10px 16px",borderRadius:10,border:"none",background:`linear-gradient(135deg,${C.gold},#E07C2D)`,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"'Baloo 2',sans-serif",whiteSpace:"nowrap",boxShadow:"0 4px 12px rgba(201,147,46,0.4)"}}>{I.plus} Share a Win</button>
     </div>
     {wins.length===0?
-      <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:"32px 16px",textAlign:"center",color:C.muted,fontSize:13}}>No wins shared yet. Click "Share a Win" to post the first one.</div>
-    :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}}>
-      {wins.map(w=>{const o=data.officers.find(x=>x.id===w.officerId);return<WinCard key={w.id} w={w} o={o} setModal={setModal}/>;})}
+      <div style={{background:C.surface,border:`2px dashed ${C.border}`,borderRadius:14,padding:"36px 16px",textAlign:"center",color:C.muted,fontSize:13}}><div style={{fontSize:32,marginBottom:8}}>🏆</div>No wins shared yet. Click "Share a Win" to post the first one!</div>
+    :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:18,padding:"6px 4px"}}>
+      {wins.map((w,i)=>{const o=data.officers.find(x=>x.id===w.officerId);return<WinCard key={w.id} w={w} o={o} setModal={setModal} i={i}/>;})}
     </div>}
   </div>;
 }
@@ -721,13 +734,17 @@ function AddWinModal({data,onClose,onSave}){
   const[f,setF]=useState({officerId:"",date:TODAY,text:""});
   const s=(k,v)=>setF(p=>({...p,[k]:v}));
   const ok=f.text.trim().length>0;
-  return<Modal title="Share a Win" onClose={onClose} width={420}>
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
-      <div><label style={sL}>Loan Officer</label><select value={f.officerId} onChange={e=>s("officerId",e.target.value)} style={sS}><option value="">Team Win</option>{data.officers.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></div>
-      <div><label style={sL}>Week Of</label><input type="date" value={f.date} onChange={e=>s("date",e.target.value)} style={sS}/></div>
+  return<Modal title="🎉 Share a Win" onClose={onClose} width={420}>
+    <div style={{marginBottom:12}}>
+      <label style={sL}>Who's sharing? *</label>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+        <button onClick={()=>s("officerId","")} style={{padding:"6px 12px",borderRadius:7,fontSize:12,cursor:"pointer",fontFamily:"inherit",fontWeight:600,border:`1.5px solid ${f.officerId===""?C.gold:C.border}`,background:f.officerId===""?C.goldDim:"transparent",color:f.officerId===""?C.gold:C.muted}}>🎉 Team Win</button>
+        {data.officers.map(o=><button key={o.id} onClick={()=>s("officerId",o.id)} style={{padding:"6px 12px",borderRadius:7,fontSize:12,cursor:"pointer",fontFamily:"inherit",fontWeight:600,border:`1.5px solid ${f.officerId===o.id?C.primary:C.border}`,background:f.officerId===o.id?C.primaryDim:"transparent",color:f.officerId===o.id?C.primary:C.muted}}>{o.name}</button>)}
+      </div>
     </div>
-    <div style={{marginBottom:16}}><label style={sL}>What's the win? *</label><textarea value={f.text} onChange={e=>s("text",e.target.value)} rows={4} placeholder="e.g. Closed my first jumbo loan this week!" style={{...sI,resize:"vertical"}} autoFocus/></div>
-    <button onClick={()=>{if(ok){onSave({title:`Win — ${fD(f.date)}`,officerId:f.officerId,date:f.date,text:f.text.trim()});onClose();}}} style={bP(ok)}>Share Win</button>
+    <div style={{marginBottom:12}}><label style={sL}>Week Of</label><input type="date" value={f.date} onChange={e=>s("date",e.target.value)} style={sS}/></div>
+    <div style={{marginBottom:16}}><label style={sL}>What's the win? *</label><textarea value={f.text} onChange={e=>s("text",e.target.value)} rows={4} placeholder="e.g. Closed my first jumbo loan this week!" style={{...sI,resize:"vertical"}}/></div>
+    <button onClick={()=>{if(ok){onSave({title:`Win — ${fD(f.date)}`,officerId:f.officerId,date:f.date,text:f.text.trim()});onClose();}}} style={bP(ok)}>Share Win 🎉</button>
   </Modal>;
 }
 
