@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { fetchAllData, monday } from "./mondayClient.js";
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -732,11 +732,30 @@ function AddRecapModal({data,onClose,onSave}){
 
 function AddWinModal({data,onClose,onSave}){
   const[f,setF]=useState({officerId:"",date:TODAY,text:""});
+  const[ddOpen,setDdOpen]=useState(false);
+  const ddRef=useRef(null);
   const s=(k,v)=>setF(p=>({...p,[k]:v}));
   const ok=f.text.trim().length>0;
+  const selected=data.officers.find(o=>o.id===f.officerId);
+  const label=selected?selected.name:"🎉 Team Win";
+  useEffect(()=>{
+    if(!ddOpen)return;
+    const h=e=>{if(ddRef.current&&!ddRef.current.contains(e.target))setDdOpen(false);};
+    document.addEventListener("mousedown",h);
+    return ()=>document.removeEventListener("mousedown",h);
+  },[ddOpen]);
   return<Modal title="🎉 Share a Win" onClose={onClose} width={420}>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
-      <div><label style={sL}>Who's sharing? *</label><select value={f.officerId} onChange={e=>s("officerId",e.target.value)} style={sS}><option value="">🎉 Team Win</option>{data.officers.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></div>
+      <div ref={ddRef} style={{position:"relative"}}>
+        <label style={sL}>Who's sharing? *</label>
+        <button type="button" onClick={()=>setDdOpen(v=>!v)} style={{...sS,display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",background:"#fff",textAlign:"left",color:C.text}}>
+          <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{label}</span><span style={{fontSize:10,color:C.muted,marginLeft:6}}>▾</span>
+        </button>
+        {ddOpen&&<div style={{position:"absolute",top:"100%",left:0,right:0,marginTop:4,background:"#fff",border:`1px solid ${C.border}`,borderRadius:8,boxShadow:"0 8px 24px rgba(16,23,58,0.18)",zIndex:20,maxHeight:200,overflowY:"auto"}}>
+          <div onClick={()=>{s("officerId","");setDdOpen(false);}} style={{padding:"8px 12px",fontSize:12,cursor:"pointer",fontWeight:f.officerId===""?700:400,background:f.officerId===""?C.primaryDim:"transparent",color:C.text}}>🎉 Team Win</div>
+          {data.officers.map(o=><div key={o.id} onClick={()=>{s("officerId",o.id);setDdOpen(false);}} style={{padding:"8px 12px",fontSize:12,cursor:"pointer",fontWeight:f.officerId===o.id?700:400,background:f.officerId===o.id?C.primaryDim:"transparent",color:C.text}}>{o.name}</div>)}
+        </div>}
+      </div>
       <div><label style={sL}>Week Of</label><input type="date" value={f.date} onChange={e=>s("date",e.target.value)} style={sS}/></div>
     </div>
     <div style={{marginBottom:16}}><label style={sL}>What's the win? *</label><textarea value={f.text} onChange={e=>s("text",e.target.value)} rows={4} placeholder="e.g. Closed my first jumbo loan this week!" style={{...sI,resize:"vertical"}} autoFocus/></div>
