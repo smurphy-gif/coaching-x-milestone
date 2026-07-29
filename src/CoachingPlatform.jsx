@@ -607,15 +607,24 @@ function RecapCard({r,o,setModal}){
 
 function RecapsPage({data,setModal}){
   const recaps=data.recaps||[];
+  const[sort,setSort]=useState("newest");
+  const rD=r=>r.date||r.createdAt||"";
+  const sorted=[...recaps].sort((a,b)=>sort==="newest"?rD(b).localeCompare(rD(a)):rD(a).localeCompare(rD(b)));
   return<div>
     <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,marginBottom:20,flexWrap:"wrap"}}>
       <div><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Baloo 2',sans-serif"}}>Coaching Call Recaps</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>Auto-posted after each coaching call on the Roam/Coaching Calls calendar — or add one yourself below, video link included.</p></div>
-      <button onClick={()=>setModal("add-recap")} style={{display:"flex",alignItems:"center",gap:6,padding:"9px 14px",borderRadius:8,border:"none",background:C.primary,color:"#fff",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>{I.plus} Add Recap</button>
+      <div style={{display:"flex",alignItems:"center",gap:8}}>
+        <div style={{display:"flex",border:`1px solid ${C.border}`,borderRadius:8,overflow:"hidden"}}>
+          <button onClick={()=>setSort("newest")} style={{padding:"8px 12px",border:"none",background:sort==="newest"?C.primaryDim:C.surface,color:sort==="newest"?C.primary:C.muted,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Newest first</button>
+          <button onClick={()=>setSort("oldest")} style={{padding:"8px 12px",border:"none",borderLeft:`1px solid ${C.border}`,background:sort==="oldest"?C.primaryDim:C.surface,color:sort==="oldest"?C.primary:C.muted,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Oldest first</button>
+        </div>
+        <button onClick={()=>setModal("add-recap")} style={{display:"flex",alignItems:"center",gap:6,padding:"9px 14px",borderRadius:8,border:"none",background:C.primary,color:"#fff",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>{I.plus} Add Recap</button>
+      </div>
     </div>
     {recaps.length===0?
       <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:"32px 16px",textAlign:"center",color:C.muted,fontSize:13}}>No recaps yet. Once a coaching call on the Calendar tab finishes, its recap will appear here automatically — or add one manually with the button above.</div>
     :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))",gap:12}}>
-      {recaps.map(r=>{const o=data.officers.find(x=>x.id===r.officerId);return<RecapCard key={r.id} r={r} o={o} setModal={setModal}/>;})}
+      {sorted.map(r=>{const o=data.officers.find(x=>x.id===r.officerId);return<RecapCard key={r.id} r={r} o={o} setModal={setModal}/>;})}
     </div>}
   </div>;
 }
