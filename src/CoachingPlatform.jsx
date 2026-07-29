@@ -191,8 +191,8 @@ export default function App(){
           {[
             {key:"dashboard",icon:I.dashboard,label:"Dashboard"},
             {key:"officers",icon:I.people,label:"Loan Officers"},
-            {key:"activity",icon:I.trend,label:"Activity"},
             {key:"wins",icon:I.star,label:"Weekly Wins"},
+            {key:"activity",icon:I.trend,label:"Activity"},
             {key:"resources",icon:I.resources,label:"Resources"},
             {key:"calendar",icon:I.cal,label:"Calendar"},
             {key:"recaps",icon:I.msg,label:"Recaps"},
@@ -219,9 +219,9 @@ export default function App(){
         <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
         <section id="officers"><Officers data={data} oS={oS} setModal={setModal} search={search} setSearch={setSearch} expandedId={expandedOfficerId} setExpandedId={setExpandedOfficerId} toggle={toggleC} addN={addN} togD={togD} setDN={setDN}/></section>
         <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
-        <section id="activity"><ActivityPage data={data} date={aDate} setDate={setADate} logM={logM} setModal={setModal} dDate={dDate} setDDate={setDDate} togD={togD} setDN={setDN} delDT={delDT} tF={tF} setTF={setTF} toggle={toggleC}/></section>
-        <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
         <section id="wins"><WinsPage data={data} setModal={setModal}/></section>
+        <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
+        <section id="activity"><ActivityPage data={data} date={aDate} setDate={setADate} logM={logM} setModal={setModal} dDate={dDate} setDDate={setDDate} togD={togD} setDN={setDN} delDT={delDT} tF={tF} setTF={setTF} toggle={toggleC}/></section>
         <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
         <section id="resources"><ResourcesPage data={data} filter={rF} setFilter={setRF} setModal={setModal}/></section>
         <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
@@ -735,15 +735,11 @@ function AddWinModal({data,onClose,onSave}){
   const s=(k,v)=>setF(p=>({...p,[k]:v}));
   const ok=f.text.trim().length>0;
   return<Modal title="🎉 Share a Win" onClose={onClose} width={420}>
-    <div style={{marginBottom:12}}>
-      <label style={sL}>Who's sharing? *</label>
-      <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-        <button onClick={()=>s("officerId","")} style={{padding:"6px 12px",borderRadius:7,fontSize:12,cursor:"pointer",fontFamily:"inherit",fontWeight:600,border:`1.5px solid ${f.officerId===""?C.gold:C.border}`,background:f.officerId===""?C.goldDim:"transparent",color:f.officerId===""?C.gold:C.muted}}>🎉 Team Win</button>
-        {data.officers.map(o=><button key={o.id} onClick={()=>s("officerId",o.id)} style={{padding:"6px 12px",borderRadius:7,fontSize:12,cursor:"pointer",fontFamily:"inherit",fontWeight:600,border:`1.5px solid ${f.officerId===o.id?C.primary:C.border}`,background:f.officerId===o.id?C.primaryDim:"transparent",color:f.officerId===o.id?C.primary:C.muted}}>{o.name}</button>)}
-      </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
+      <div><label style={sL}>Who's sharing? *</label><select value={f.officerId} onChange={e=>s("officerId",e.target.value)} style={sS}><option value="">🎉 Team Win</option>{data.officers.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></div>
+      <div><label style={sL}>Week Of</label><input type="date" value={f.date} onChange={e=>s("date",e.target.value)} style={sS}/></div>
     </div>
-    <div style={{marginBottom:12}}><label style={sL}>Week Of</label><input type="date" value={f.date} onChange={e=>s("date",e.target.value)} style={sS}/></div>
-    <div style={{marginBottom:16}}><label style={sL}>What's the win? *</label><textarea value={f.text} onChange={e=>s("text",e.target.value)} rows={4} placeholder="e.g. Closed my first jumbo loan this week!" style={{...sI,resize:"vertical"}}/></div>
+    <div style={{marginBottom:16}}><label style={sL}>What's the win? *</label><textarea value={f.text} onChange={e=>s("text",e.target.value)} rows={4} placeholder="e.g. Closed my first jumbo loan this week!" style={{...sI,resize:"vertical"}} autoFocus/></div>
     <button onClick={()=>{if(ok){onSave({title:`Win — ${fD(f.date)}`,officerId:f.officerId,date:f.date,text:f.text.trim()});onClose();}}} style={bP(ok)}>Share Win 🎉</button>
   </Modal>;
 }
