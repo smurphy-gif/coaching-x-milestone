@@ -249,9 +249,6 @@ function Dashboard({data,g,oS,goToOfficer,dSt}){
   const podium=ranked.slice(0,3);
   return<div>
     <div style={{marginBottom:24}}><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Baloo 2',sans-serif"}}>Coaching Dashboard</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>Milestone Mortgage Solutions — Team Progress</p></div>
-    <div style={{display:"flex",gap:12,marginBottom:24,flexWrap:"wrap"}}>
-      <Stat label="Assignments" value={g.totalTasks} sub="coaching tasks"/><Stat label="Completed" value={g.totalCompleted} accent={C.green} sub={`${g.totalTasks?Math.round((g.totalCompleted/g.totalTasks)*100):0}% done`}/><Stat label="Avg Progress" value={`${g.avgRate}%`} accent={C.primary} sub="per officer"/><Stat label="Today's Dailies" value={`${dSt.pct}%`} accent={dSt.pct===100?C.green:C.gold} sub={`${dSt.dn}/${dSt.tot} done`}/>
-    </div>
     <div style={{display:"grid",gridTemplateColumns:"1fr",gap:16}}>
       <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:20}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,flexWrap:"wrap",gap:6}}>
