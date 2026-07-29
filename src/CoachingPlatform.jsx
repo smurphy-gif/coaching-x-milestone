@@ -345,7 +345,7 @@ const inPeriod=(dateStr,period)=>{
   if(period==="month")return diff>=0&&diff<30;
   return true;
 };
-function sumMetrics(list){return list.reduce((s,m)=>({calls:s.calls+m.calls,meetings:s.meetings+m.meetings,applications:s.applications+m.applications,preapprovals:s.preapprovals+m.preapprovals,closed:s.closed+m.closed}),{calls:0,meetings:0,applications:0,preapprovals:0,closed:0});}
+function sumMetrics(list){return list.reduce((s,m)=>{FUNNEL_FIELDS.forEach(ff=>{s[ff.key]=(s[ff.key]||0)+(m[ff.key]||0);});return s;},{});}
 // Daily goals are set once (team-wide, same for every officer). Week/Month
 // summary goals are the daily goal × a workday count — an assumption we made
 // since goals were only ever entered as a daily number.
@@ -404,14 +404,13 @@ function ActivityPage({data,date,setDate,logM,setModal,dDate,setDDate,togD,setDN
     </div>
 
     <h3 style={{fontSize:13,fontWeight:600,color:C.white,margin:"0 0 10px",fontFamily:"'Baloo 2',sans-serif"}}>By Officer</h3>
-    <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,overflow:"hidden"}}>
-      <div style={{display:"grid",gridTemplateColumns:"1.3fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr 0.8fr 0.8fr",gap:4,padding:"9px 14px",background:"rgba(16,23,58,0.03)",fontSize:9,color:C.dim,textTransform:"uppercase",letterSpacing:0.5,fontFamily:"'Baloo 2',sans-serif"}}>
-        <div>Officer</div><div>Calls</div><div>Meetings</div><div>Apps</div><div>Preapp.</div><div>Closed</div><div>Calls→Mtg</div><div>App→Preapp</div>
+    <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,overflow:"hidden",overflowX:"auto"}}>
+      <div style={{display:"grid",gridTemplateColumns:`1.3fr repeat(${FUNNEL_FIELDS.length},0.8fr)`,gap:4,padding:"9px 14px",background:"rgba(16,23,58,0.03)",fontSize:9,color:C.dim,textTransform:"uppercase",letterSpacing:0.5,fontFamily:"'Baloo 2',sans-serif",minWidth:760}}>
+        <div>Officer</div>{FUNNEL_FIELDS.map(ff=><div key={ff.key}>{ff.label}</div>)}
       </div>
-      {data.officers.map(o=>{const m=sumMetrics(periodMetrics.filter(x=>x.officerId===o.id));return<div key={o.id} style={{display:"grid",gridTemplateColumns:"1.3fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr 0.8fr 0.8fr",gap:4,padding:"9px 14px",fontSize:12,color:C.text,borderTop:`1px solid ${C.border}`}}>
+      {data.officers.map(o=>{const m=sumMetrics(periodMetrics.filter(x=>x.officerId===o.id));return<div key={o.id} style={{display:"grid",gridTemplateColumns:`1.3fr repeat(${FUNNEL_FIELDS.length},0.8fr)`,gap:4,padding:"9px 14px",fontSize:12,color:C.text,borderTop:`1px solid ${C.border}`,minWidth:760}}>
         <div style={{display:"flex",alignItems:"center",gap:7,fontWeight:500,color:C.white}}><div style={{width:20,height:20,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:C.white,background:`linear-gradient(135deg,${C.primary}30,${C.accent}30)`,flexShrink:0}}>{o.avatar}</div>{o.name}</div>
-        <div>{m.calls}</div><div>{m.meetings}</div><div>{m.applications}</div><div>{m.preapprovals}</div><div style={{color:C.green,fontWeight:600}}>{m.closed}</div>
-        <div style={{color:C.muted}}>{pctOf(m.meetings,m.calls)}%</div><div style={{color:C.muted}}>{pctOf(m.preapprovals,m.applications)}%</div>
+        {FUNNEL_FIELDS.map(ff=><div key={ff.key} style={ff.key==="closed"?{color:C.green,fontWeight:600}:undefined}>{m[ff.key]||0}</div>)}
       </div>;})}
       {data.officers.length===0&&<p style={{color:C.muted,fontSize:13,padding:"12px 14px"}}>No officers yet.</p>}
     </div>
