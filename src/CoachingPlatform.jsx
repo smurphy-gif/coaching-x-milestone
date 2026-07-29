@@ -586,7 +586,7 @@ function RecapBlocks({text}){
 
 function RecapCard({r,o,setModal}){
   const[open,setOpen]=useState(false);
-  const title=o?.name||stripRecapDateSuffix(r.title)||"Coaching Call Recap";
+  const title=stripRecapDateSuffix(r.title)||o?.name||"Coaching Call Recap";
   return<div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:16}}>
     <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
       <div style={{width:28,height:28,minWidth:28,borderRadius:"50%",background:C.primaryDim,color:C.primary,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700}}>{o?mkA(o.name):I.people}</div>
@@ -653,17 +653,18 @@ function AddDailyModal({data,task,onClose,onSave}){
 }
 
 function AddRecapModal({data,onClose,onSave}){
-  const[f,setF]=useState({officerId:"",date:TODAY,text:"",meetingUrl:""});
+  const[f,setF]=useState({title:"",officerId:"",date:TODAY,text:"",meetingUrl:""});
   const s=(k,v)=>setF(p=>({...p,[k]:v}));
   const ok=f.text.trim().length>0;
   return<Modal title="Add Call Recap" onClose={onClose}>
+    <div style={{marginBottom:12}}><label style={sL}>Title</label><input value={f.title} onChange={e=>s("title",e.target.value)} placeholder="e.g. 1:1 Check-in — Logan Bruneau" style={sI} autoFocus/></div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
       <div><label style={sL}>Loan Officer</label><select value={f.officerId} onChange={e=>s("officerId",e.target.value)} style={sS}><option value="">General / Team</option>{data.officers.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></div>
       <div><label style={sL}>Call Date</label><input type="date" value={f.date} onChange={e=>s("date",e.target.value)} style={sS}/></div>
     </div>
-    <div style={{marginBottom:12}}><label style={sL}>Recap Notes *</label><textarea value={f.text} onChange={e=>s("text",e.target.value)} rows={6} placeholder={"### Key Topics\n- What we covered\n\n### Action Items\n- Next steps"} style={{...sI,resize:"vertical"}} autoFocus/></div>
+    <div style={{marginBottom:12}}><label style={sL}>Recap Notes *</label><textarea value={f.text} onChange={e=>s("text",e.target.value)} rows={6} placeholder={"### Key Topics\n- What we covered\n\n### Action Items\n- Next steps"} style={{...sI,resize:"vertical"}}/></div>
     <div style={{marginBottom:16}}><label style={sL}>Video Link</label><input value={f.meetingUrl} onChange={e=>s("meetingUrl",e.target.value)} placeholder="Paste the Roam / Zoom / Google Meet recording link" style={sI}/><p style={{margin:"6px 0 0",fontSize:11,color:C.dim}}>Shows as a "View call" button on the recap card.</p></div>
-    <button onClick={()=>{if(ok){onSave({title:`Coaching Call Recap — ${fD(f.date)}`,officerId:f.officerId,date:f.date,text:f.text.trim(),meetingUrl:f.meetingUrl.trim()});onClose();}}} style={bP(ok)}>Add Recap</button>
+    <button onClick={()=>{if(ok){onSave({title:f.title.trim()||`Coaching Call Recap — ${fD(f.date)}`,officerId:f.officerId,date:f.date,text:f.text.trim(),meetingUrl:f.meetingUrl.trim()});onClose();}}} style={bP(ok)}>Add Recap</button>
   </Modal>;
 }
 
