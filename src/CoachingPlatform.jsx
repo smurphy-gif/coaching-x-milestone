@@ -151,6 +151,8 @@ export default function App(){
   async function delDT(did){try{await monday.deleteDailyTask(did);setData(p=>{const dc={...p.dailyCompletions};Object.keys(dc).forEach(k=>{if(k.includes(`-${did}-`))delete dc[k];});return{...p,dailyTasks:p.dailyTasks.filter(t=>t.id!==did),dailyCompletions:dc};});}catch(e){console.error("delDT failed",e);}}
   async function logM(oid,dt,patch){const existing=data.metrics.find(m=>m.officerId===oid&&m.date===dt);try{const id=await monday.logMetrics(existing?.id,oid,dt,patch);setData(p=>({...p,metrics:existing?p.metrics.map(m=>m.id===existing.id?{...m,...patch,id}:m):[...p.metrics,{...patch,id,officerId:oid,date:dt}]}));}catch(e){console.error("logM failed",e);}}
   async function saveGoals(g){try{const id=await monday.updateGoals(data.goals._itemId,g);setData(p=>({...p,goals:{...g,_itemId:id}}));}catch(e){console.error("saveGoals failed",e);}}
+  async function addRecap(r){try{const id=await monday.createRecap(r);setData(p=>({...p,recaps:[{...r,id,createdAt:TODAY},...p.recaps]}));}catch(e){console.error("addRecap failed",e);}}
+  async function delRecap(id){try{await monday.deleteRecap(id);setData(p=>({...p,recaps:p.recaps.filter(r=>r.id!==id)}));}catch(e){console.error("delRecap failed",e);}}
 
   if(loadError)return<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:C.bg,color:C.text,fontFamily:"'Inter',sans-serif",flexDirection:"column",gap:10,padding:24,textAlign:"center"}}><p style={{color:C.red,fontWeight:600}}>Couldn't load data from Monday.com</p><p style={{opacity:0.6,fontSize:12,maxWidth:420}}>{loadError}</p><p style={{opacity:0.5,fontSize:12}}>Check your .env file has a valid VITE_MONDAY_API_TOKEN and board IDs, then refresh.</p></div>;
   if(!loaded||!data)return<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:C.bg,color:C.text,fontFamily:"'Inter',sans-serif"}}><p style={{opacity:0.6}}>Loading from Monday...</p></div>;
@@ -219,7 +221,7 @@ export default function App(){
         <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
         <section id="calendar"><CalendarPage/></section>
         <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
-        <section id="recaps"><RecapsPage data={data}/></section>
+        <section id="recaps"><RecapsPage data={data} setModal={setModal}/></section>
       </main>
 
       {modal==="add-task"&&<AddTaskModal data={data} onClose={()=>setModal(null)} onSave={addTask}/>}
@@ -235,6 +237,8 @@ export default function App(){
       {modal?.type==="confirm-delete"&&<Confirm msg={`Remove ${modal.officer.name}?`} sub="Removes from all tasks and assignments." onNo={()=>setModal(null)} onOk={()=>{delO(modal.officer.id);setModal(null);}}/>}
       {modal?.type==="confirm-delete-daily"&&<Confirm msg={`Delete "${modal.task.title}"?`} sub="All history will be lost." onNo={()=>setModal(null)} onOk={()=>{delDT(modal.task.id);setModal(null);}}/>}
       {modal==="edit-goals"&&<GoalsModal goals={data.goals} onClose={()=>setModal(null)} onSave={saveGoals}/>}
+      {modal==="add-recap"&&<AddRecapModal data={data} onClose={()=>setModal(null)} onSave={addRecap}/>}
+      {modal?.type==="confirm-delete-recap"&&<Confirm msg="Delete this recap?" sub="This can't be undone." onNo={()=>setModal(null)} onOk={()=>{delRecap(modal.recap.id);setModal(null);}}/>}
     </div>
   );
 }
@@ -578,16 +582,17 @@ function RecapBlocks({text}){
   })}</>;
 }
 
-function RecapCard({r,o}){
+function RecapCard({r,o,setModal}){
   const[open,setOpen]=useState(false);
   const title=o?.name||stripRecapDateSuffix(r.title)||"Coaching Call Recap";
   return<div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:16}}>
     <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
       <div style={{width:28,height:28,minWidth:28,borderRadius:"50%",background:C.primaryDim,color:C.primary,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700}}>{o?mkA(o.name):I.people}</div>
-      <div>
+      <div style={{flex:1,minWidth:0}}>
         <div style={{fontSize:13,fontWeight:600,color:C.text}}>{title}</div>
         <div style={{fontSize:10,color:C.dim}}>{r.date?fD(r.date):r.createdAt?fD(r.createdAt):""}</div>
       </div>
+      {setModal&&<button onClick={()=>setModal({type:"confirm-delete-recap",recap:r})} style={{background:"none",border:"none",color:C.dim,cursor:"pointer",padding:2,opacity:0.6}}>{I.trash}</button>}
     </div>
     <div style={{maxHeight:open?"none":52,overflow:"hidden",position:"relative"}}>
       <RecapBlocks text={r.text}/>
@@ -598,14 +603,17 @@ function RecapCard({r,o}){
   </div>;
 }
 
-function RecapsPage({data}){
+function RecapsPage({data,setModal}){
   const recaps=data.recaps||[];
   return<div>
-    <div style={{marginBottom:20}}><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Baloo 2',sans-serif"}}>Coaching Call Recaps</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>Auto-posted after each coaching call on the Roam/Coaching Calls calendar. Nothing to do here — recaps show up on their own once a call ends and notes are ready.</p></div>
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,marginBottom:20,flexWrap:"wrap"}}>
+      <div><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Baloo 2',sans-serif"}}>Coaching Call Recaps</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>Auto-posted after each coaching call on the Roam/Coaching Calls calendar — or add one yourself below, video link included.</p></div>
+      <button onClick={()=>setModal("add-recap")} style={{display:"flex",alignItems:"center",gap:6,padding:"9px 14px",borderRadius:8,border:"none",background:C.primary,color:"#fff",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>{I.plus} Add Recap</button>
+    </div>
     {recaps.length===0?
-      <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:"32px 16px",textAlign:"center",color:C.muted,fontSize:13}}>No recaps yet. Once a coaching call on the Calendar tab finishes, its recap will appear here automatically.</div>
+      <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:"32px 16px",textAlign:"center",color:C.muted,fontSize:13}}>No recaps yet. Once a coaching call on the Calendar tab finishes, its recap will appear here automatically — or add one manually with the button above.</div>
     :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))",gap:12}}>
-      {recaps.map(r=>{const o=data.officers.find(x=>x.id===r.officerId);return<RecapCard key={r.id} r={r} o={o}/>;})}
+      {recaps.map(r=>{const o=data.officers.find(x=>x.id===r.officerId);return<RecapCard key={r.id} r={r} o={o} setModal={setModal}/>;})}
     </div>}
   </div>;
 }
@@ -640,6 +648,21 @@ function AddDailyModal({data,task,onClose,onSave}){
   const isE=!!task;
   const[f,setF]=useState(task?{title:task.title,description:task.description,category:task.category,assignedTo:task.assignedTo,recurring:task.recurring}:{title:"",description:"",category:"Sales",assignedTo:[],recurring:true});const s=(k,v)=>setF(p=>({...p,[k]:v}));const tgl=id=>s("assignedTo",f.assignedTo.includes(id)?f.assignedTo.filter(x=>x!==id):[...f.assignedTo,id]);const ok=f.title&&f.assignedTo.length;
   return<Modal title={isE?"Edit Daily Task":"New Daily Task"} onClose={onClose}><div style={{marginBottom:12}}><label style={sL}>Title *</label><input value={f.title} onChange={e=>s("title",e.target.value)} placeholder="e.g. Make 10+ Outbound Calls" style={sI} autoFocus/></div><div style={{marginBottom:12}}><label style={sL}>Description</label><textarea value={f.description} onChange={e=>s("description",e.target.value)} rows={2} style={{...sI,resize:"vertical"}}/></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}><div><label style={sL}>Category</label><select value={f.category} onChange={e=>s("category",e.target.value)} style={sS}>{["Sales","Product Knowledge","Operations","Partnerships","Compliance"].map(c=><option key={c}>{c}</option>)}</select></div><div><label style={sL}>Type</label><div style={{display:"flex",gap:6,marginTop:4}}><button onClick={()=>s("recurring",true)} style={{flex:1,padding:7,borderRadius:6,border:`1px solid ${f.recurring?C.primary:C.border}`,background:f.recurring?C.primaryDim:"transparent",color:f.recurring?C.primary:C.muted,fontSize:11,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:3}}>{I.repeat} Recurring</button><button onClick={()=>s("recurring",false)} style={{flex:1,padding:7,borderRadius:6,border:`1px solid ${!f.recurring?C.gold:C.border}`,background:!f.recurring?C.goldDim:"transparent",color:!f.recurring?C.gold:C.muted,fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>One-off</button></div></div></div><div style={{marginBottom:16}}><label style={sL}>Assign To *</label><div style={{display:"flex",gap:5,flexWrap:"wrap"}}><button onClick={()=>s("assignedTo",f.assignedTo.length===data.officers.length?[]:data.officers.map(o=>o.id))} style={{padding:"4px 9px",borderRadius:5,fontSize:11,cursor:"pointer",border:`1px solid ${C.border}`,background:"rgba(16,23,58,0.02)",color:C.muted,fontFamily:"inherit"}}>{f.assignedTo.length===data.officers.length?"None":"All"}</button>{data.officers.map(o=><button key={o.id} onClick={()=>tgl(o.id)} style={{padding:"4px 10px",borderRadius:5,fontSize:11,cursor:"pointer",fontFamily:"inherit",border:`1px solid ${f.assignedTo.includes(o.id)?C.primary:C.border}`,background:f.assignedTo.includes(o.id)?C.primaryDim:"transparent",color:f.assignedTo.includes(o.id)?C.primary:C.muted}}>{o.name}</button>)}</div></div><button onClick={()=>{if(ok){onSave(f);onClose();}}} style={bP(ok)}>{isE?"Save Changes":"Create Daily Task"}</button></Modal>;
+}
+
+function AddRecapModal({data,onClose,onSave}){
+  const[f,setF]=useState({officerId:"",date:TODAY,text:"",meetingUrl:""});
+  const s=(k,v)=>setF(p=>({...p,[k]:v}));
+  const ok=f.text.trim().length>0;
+  return<Modal title="Add Call Recap" onClose={onClose}>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+      <div><label style={sL}>Loan Officer</label><select value={f.officerId} onChange={e=>s("officerId",e.target.value)} style={sS}><option value="">General / Team</option>{data.officers.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></div>
+      <div><label style={sL}>Call Date</label><input type="date" value={f.date} onChange={e=>s("date",e.target.value)} style={sS}/></div>
+    </div>
+    <div style={{marginBottom:12}}><label style={sL}>Recap Notes *</label><textarea value={f.text} onChange={e=>s("text",e.target.value)} rows={6} placeholder={"### Key Topics\n- What we covered\n\n### Action Items\n- Next steps"} style={{...sI,resize:"vertical"}} autoFocus/></div>
+    <div style={{marginBottom:16}}><label style={sL}>Video Link</label><input value={f.meetingUrl} onChange={e=>s("meetingUrl",e.target.value)} placeholder="Paste the Roam / Zoom / Google Meet recording link" style={sI}/><p style={{margin:"6px 0 0",fontSize:11,color:C.dim}}>Shows as a "View call" button on the recap card.</p></div>
+    <button onClick={()=>{if(ok){onSave({title:`Coaching Call Recap — ${fD(f.date)}`,officerId:f.officerId,date:f.date,text:f.text.trim(),meetingUrl:f.meetingUrl.trim()});onClose();}}} style={bP(ok)}>Add Recap</button>
+  </Modal>;
 }
 
 function GoalsModal({goals,onClose,onSave}){
