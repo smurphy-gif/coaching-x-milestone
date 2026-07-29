@@ -172,12 +172,8 @@ export default function App(){
       <nav style={{width:240,minWidth:240,background:C.surface,borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",padding:"20px 0"}}>
         {/* Logo */}
         <div style={{padding:"0 20px 24px",borderBottom:`1px solid ${C.border}`}}>
-          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
-            <div style={{width:36,height:36,borderRadius:8,background:`linear-gradient(135deg, ${C.primary}, ${C.accent})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:800,color:"#fff",letterSpacing:-0.5}}>M</div>
-            <div>
-              <div style={{fontSize:11,fontWeight:600,color:C.primary,letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Baloo 2',sans-serif",lineHeight:1}}>Coaching</div>
-              <div style={{fontSize:10,color:C.muted,fontFamily:"'Baloo 2',sans-serif",letterSpacing:0.5}}>× Milestone</div>
-            </div>
+          <div style={{display:"flex",alignItems:"center",marginBottom:6}}>
+            <div style={{fontSize:13,fontWeight:700,color:C.primary,letterSpacing:1,textTransform:"uppercase",fontFamily:"'Baloo 2',sans-serif",lineHeight:1}}>Coaching × Milestone</div>
           </div>
           <div style={{fontSize:9,color:C.dim,fontFamily:"'Baloo 2',sans-serif",letterSpacing:0.3}}>Milestone Mortgage Solutions</div>
         </div>
@@ -375,7 +371,7 @@ function ActivityPage({data,date,setDate,logM,setModal,dDate,setDDate,togD,setDN
     <div style={{marginBottom:6}}><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Baloo 2',sans-serif"}}>Activity</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>Calls, meetings, applications, preapprovals & closed loans — plus daily &amp; one-time tasks, tracked together</p></div>
 
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",margin:"20px 0 8px",flexWrap:"wrap",gap:8}}>
-      <h3 style={{fontSize:13,fontWeight:600,color:C.white,margin:0,fontFamily:"'Baloo 2',sans-serif"}}>Log for the day</h3>
+      <h3 style={{fontSize:18,fontWeight:700,color:C.white,margin:0,fontFamily:"'Baloo 2',sans-serif"}}>Log for the day</h3>
       <button onClick={()=>setModal("edit-goals")} style={{display:"flex",alignItems:"center",gap:5,background:"rgba(16,23,58,0.03)",border:`1px solid ${C.border}`,color:C.muted,padding:"6px 12px",borderRadius:7,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{I.edit} Edit Goals</button>
     </div>
     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:"9px 14px",width:"fit-content"}}>
@@ -396,7 +392,7 @@ function ActivityPage({data,date,setDate,logM,setModal,dDate,setDDate,togD,setDN
     </div>
 
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,flexWrap:"wrap",gap:8}}>
-      <h3 style={{fontSize:13,fontWeight:600,color:C.white,margin:0,fontFamily:"'Baloo 2',sans-serif"}}>Conversion Summary</h3>
+      <h3 style={{fontSize:18,fontWeight:700,color:C.white,margin:0,fontFamily:"'Baloo 2',sans-serif"}}>Conversion Summary</h3>
       <div style={{display:"flex",gap:6}}>{[{k:"week",l:"This Week"},{k:"month",l:"This Month"},{k:"all",l:"All Time"}].map(p=><button key={p.k} onClick={()=>setPeriod(p.k)} style={{padding:"5px 12px",borderRadius:6,border:"1px solid",fontSize:11,cursor:"pointer",fontWeight:500,fontFamily:"inherit",background:period===p.k?C.primaryDim:"transparent",borderColor:period===p.k?`rgba(45,183,166,0.3)`:C.border,color:period===p.k?C.primary:C.muted}}>{p.l}</button>)}</div>
     </div>
 
@@ -414,7 +410,7 @@ function ActivityPage({data,date,setDate,logM,setModal,dDate,setDDate,togD,setDN
 
     <div style={{borderTop:`1px solid ${C.border}`,margin:"32px 0"}}/>
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6,flexWrap:"wrap",gap:8}}>
-      <div><h3 style={{fontSize:13,fontWeight:600,color:C.white,margin:0,fontFamily:"'Baloo 2',sans-serif"}}>Tasks</h3><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>{view==="daily"?"Recurring and one-off daily assignments":"One-time assignments with deadlines"}</p></div>
+      <div><h3 style={{fontSize:18,fontWeight:700,color:C.white,margin:0,fontFamily:"'Baloo 2',sans-serif"}}>Tasks</h3><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>{view==="daily"?"Recurring and one-off daily assignments":"One-time assignments with deadlines"}</p></div>
       <button onClick={()=>setModal(view==="daily"?"add-daily":"add-task")} style={{display:"flex",alignItems:"center",gap:5,background:C.primary,border:"none",color:"#fff",padding:"9px 16px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{I.plus} {view==="daily"?"New Daily Task":"New Task"}</button>
     </div>
     <div style={{display:"flex",gap:6,margin:"14px 0 20px"}}>
