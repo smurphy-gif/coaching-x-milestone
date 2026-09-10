@@ -30,7 +30,6 @@ const I={
 };
 
 const fD=(d)=>{const s=String(d);return new Date(s.includes("T")?s:s+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});};
-const cC=(c)=>({Sales:C.primary,"Product Knowledge":C.gold,Operations:C.accent,Partnerships:"#E07C5A",Compliance:"#7C6BC4"}[c]||C.muted);
 const mkA=(n)=>n.split(" ").map(w=>w[0]).join("").toUpperCase().slice(0,2);
 
 const sI={width:"100%",background:"rgba(16,23,58,0.04)",border:`1px solid ${C.border}`,borderRadius:6,padding:"9px 11px",color:C.text,fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit"};
@@ -45,7 +44,6 @@ function Confirm({msg,sub,onOk,onNo}){return<div style={{position:"fixed",inset:
 export default function App(){
   const[data,setData]=useState(null);
   const[modal,setModal]=useState(null);
-  const[rF,setRF]=useState("all");
   const[loaded,setLoaded]=useState(false);
   const[loadError,setLoadError]=useState(null);
 
@@ -105,7 +103,7 @@ export default function App(){
 
       {/* ── Main — everything on one scrollable page ── */}
       <main style={{flex:1,padding:"24px 32px",overflowY:"auto",maxHeight:"100vh"}}>
-        <section id="resources"><ResourcesPage data={data} filter={rF} setFilter={setRF} setModal={setModal}/></section>
+        <section id="resources"><ResourcesPage data={data} setModal={setModal}/></section>
         <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
         <section id="calendar"><CalendarPage/></section>
         <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
@@ -121,13 +119,12 @@ export default function App(){
   );
 }
 
-function ResourcesPage({data,filter,setFilter,setModal}){
-  const cats=["all",...new Set(data.resources.map(r=>r.category))];const fil=filter==="all"?data.resources:data.resources.filter(r=>r.category===filter);const ti={pdf:I.pdf,video:I.video,doc:I.doc};
+function ResourcesPage({data,setModal}){
+  const ti={pdf:I.pdf,video:I.video,doc:I.doc};
   return<div>
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}><div><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Baloo 2',sans-serif"}}>Resources</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>Coaching materials and training content</p></div><button onClick={()=>setModal("add-resource")} style={{display:"flex",alignItems:"center",gap:5,background:C.primary,border:"none",color:"#fff",padding:"9px 16px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{I.plus} Add Resource</button></div>
-    <div style={{display:"flex",gap:6,marginBottom:18,flexWrap:"wrap"}}>{cats.map(c=><button key={c} onClick={()=>setFilter(c)} style={{padding:"5px 12px",borderRadius:6,border:"1px solid",fontSize:11,cursor:"pointer",fontWeight:500,fontFamily:"inherit",background:filter===c?(c==="all"?C.primaryDim:`${cC(c)}15`):"transparent",borderColor:filter===c?(c==="all"?`rgba(45,183,166,0.3)`:`${cC(c)}40`):C.border,color:filter===c?(c==="all"?C.primary:cC(c)):C.muted}}>{c==="all"?"All":c}</button>)}</div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}}>{fil.map(r=>{const lk=data.tasks.filter(t=>t.resourceId===r.id);return<div key={r.id} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:16,transition:"border-color 0.2s"}} onMouseEnter={e=>e.currentTarget.style.borderColor=C.bHover} onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}><div style={{display:"flex",alignItems:"center",gap:9}}><div style={{width:32,height:32,borderRadius:7,display:"flex",alignItems:"center",justifyContent:"center",background:`${cC(r.category)}15`,color:cC(r.category)}}>{ti[r.type]||I.doc}</div><div><span style={{fontSize:9,fontWeight:700,color:cC(r.category),textTransform:"uppercase",fontFamily:"'Baloo 2',sans-serif"}}>{r.category}</span><div style={{fontSize:13,fontWeight:600,color:C.white}}>{r.title}</div></div></div><div style={{display:"flex",alignItems:"center",gap:2,flexShrink:0}}><button onClick={()=>setModal({type:"edit-resource",resource:r})} style={{background:"none",border:"none",color:C.dim,cursor:"pointer",padding:2,opacity:0.6}}>{I.edit}</button><button onClick={()=>setModal({type:"confirm-delete-resource",resource:r})} style={{background:"none",border:"none",color:C.dim,cursor:"pointer",padding:2,opacity:0.6}}>{I.trash}</button></div></div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}}>{data.resources.map(r=>{const lk=data.tasks.filter(t=>t.resourceId===r.id);return<div key={r.id} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:16,transition:"border-color 0.2s"}} onMouseEnter={e=>e.currentTarget.style.borderColor=C.bHover} onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}><div style={{display:"flex",alignItems:"center",gap:9}}><div style={{width:32,height:32,borderRadius:7,display:"flex",alignItems:"center",justifyContent:"center",background:C.primaryDim,color:C.primary}}>{ti[r.type]||I.doc}</div><div style={{fontSize:13,fontWeight:600,color:C.white}}>{r.title}</div></div><div style={{display:"flex",alignItems:"center",gap:2,flexShrink:0}}><button onClick={()=>setModal({type:"edit-resource",resource:r})} style={{background:"none",border:"none",color:C.dim,cursor:"pointer",padding:2,opacity:0.6}}>{I.edit}</button><button onClick={()=>setModal({type:"confirm-delete-resource",resource:r})} style={{background:"none",border:"none",color:C.dim,cursor:"pointer",padding:2,opacity:0.6}}>{I.trash}</button></div></div>
       <p style={{margin:"0 0 8px",fontSize:12,color:C.muted,lineHeight:1.6,whiteSpace:"pre-line"}}>{r.description}</p>
       {r.url&&<a href={r.url} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",gap:5,background:"rgba(16,23,58,0.03)",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 10px",color:C.primary,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",marginBottom:8,textDecoration:"none",width:"fit-content"}}>{I.doc} Open File</a>}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}><span style={{fontSize:10,color:C.dim}}>{r.type.toUpperCase()} · {fD(r.createdAt)}</span>{lk.length>0&&<span style={{fontSize:9,color:C.primary,fontFamily:"'Baloo 2',sans-serif"}}>{lk.length} task{lk.length>1?"s":""}</span>}</div>
@@ -237,8 +234,8 @@ function RecapsPage({data,setModal}){
 // ═══════════════════════════════════════════════════════════════════════════════
 function AddResourceModal({resource,onClose,onSave}){
   const isE=!!resource;
-  const[f,setF]=useState(resource?{title:resource.title,description:resource.description,type:resource.type,category:resource.category,url:resource.url||""}:{title:"",description:"",type:"pdf",category:"Sales",url:""});const s=(k,v)=>setF(p=>({...p,[k]:v}));
-  return<Modal title={isE?"Edit Resource":"Add Resource"} onClose={onClose} width={420}><div style={{marginBottom:12}}><label style={sL}>Title *</label><input value={f.title} onChange={e=>s("title",e.target.value)} style={sI} autoFocus/></div><div style={{marginBottom:12}}><label style={sL}>Description</label><textarea value={f.description} onChange={e=>s("description",e.target.value)} rows={2} style={{...sI,resize:"vertical"}}/></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}><div><label style={sL}>Type</label><select value={f.type} onChange={e=>s("type",e.target.value)} style={sS}>{["pdf","video","doc"].map(t=><option key={t}>{t.toUpperCase()}</option>)}</select></div><div><label style={sL}>Category</label><select value={f.category} onChange={e=>s("category",e.target.value)} style={sS}>{["Sales","Product Knowledge","Operations","Partnerships","Compliance"].map(c=><option key={c}>{c}</option>)}</select></div></div><div style={{marginBottom:16}}><label style={sL}>File Link (optional)</label><input value={f.url} onChange={e=>s("url",e.target.value)} placeholder="Paste a Google Drive / Dropbox / web link" style={sI}/><p style={{margin:"6px 0 0",fontSize:11,color:C.dim}}>Upload the file to Google Drive (or wherever you keep files), then paste its shareable link here.</p></div><button onClick={()=>{if(f.title){onSave(f);onClose();}}} style={bP(!!f.title)}>{isE?"Save Changes":"Add Resource"}</button></Modal>;
+  const[f,setF]=useState(resource?{title:resource.title,description:resource.description,type:resource.type,url:resource.url||""}:{title:"",description:"",type:"pdf",url:""});const s=(k,v)=>setF(p=>({...p,[k]:v}));
+  return<Modal title={isE?"Edit Resource":"Add Resource"} onClose={onClose} width={420}><div style={{marginBottom:12}}><label style={sL}>Title *</label><input value={f.title} onChange={e=>s("title",e.target.value)} style={sI} autoFocus/></div><div style={{marginBottom:12}}><label style={sL}>Description</label><textarea value={f.description} onChange={e=>s("description",e.target.value)} rows={2} style={{...sI,resize:"vertical"}}/></div><div style={{marginBottom:12}}><label style={sL}>Type</label><select value={f.type} onChange={e=>s("type",e.target.value)} style={sS}>{["pdf","video","doc"].map(t=><option key={t}>{t.toUpperCase()}</option>)}</select></div><div style={{marginBottom:16}}><label style={sL}>File Link (optional)</label><input value={f.url} onChange={e=>s("url",e.target.value)} placeholder="Paste a Google Drive / Dropbox / web link" style={sI}/><p style={{margin:"6px 0 0",fontSize:11,color:C.dim}}>Upload the file to Google Drive (or wherever you keep files), then paste its shareable link here.</p></div><button onClick={()=>{if(f.title){onSave({...f,category:"Coaching"});onClose();}}} style={bP(!!f.title)}>{isE?"Save Changes":"Add Resource"}</button></Modal>;
 }
 
 function AddRecapModal({data,onClose,onSave}){
