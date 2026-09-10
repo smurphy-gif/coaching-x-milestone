@@ -15,7 +15,6 @@ const C = {
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 const I={
-  dashboard:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>,
   people:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
   resources:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>,
   msg:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
@@ -85,7 +84,6 @@ export default function App(){
         <div style={{padding:"10px 0",flex:1}}>
           {[
             {key:"resources",icon:I.resources,label:"Resources"},
-            {key:"dashboard",icon:I.dashboard,label:"Dashboard"},
             {key:"calendar",icon:I.cal,label:"Calendar"},
             {key:"recaps",icon:I.msg,label:"Recaps"},
           ].map(item=>(
@@ -109,8 +107,6 @@ export default function App(){
       <main style={{flex:1,padding:"24px 32px",overflowY:"auto",maxHeight:"100vh"}}>
         <section id="resources"><ResourcesPage data={data} filter={rF} setFilter={setRF} setModal={setModal}/></section>
         <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
-        <section id="dashboard"><Dashboard data={data}/></section>
-        <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
         <section id="calendar"><CalendarPage/></section>
         <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
         <section id="recaps"><RecapsPage data={data} setModal={setModal}/></section>
@@ -123,20 +119,6 @@ export default function App(){
       {modal?.type==="confirm-delete-recap"&&<Confirm msg="Delete this recap?" sub="This can't be undone." onNo={()=>setModal(null)} onOk={()=>{delRecap(modal.recap.id);setModal(null);}}/>}
     </div>
   );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// DASHBOARD
-// ═══════════════════════════════════════════════════════════════════════════════
-function Dashboard({data}){
-  return<div>
-    <div style={{position:"relative",overflow:"hidden",background:`linear-gradient(120deg,${C.accent},${C.primary} 55%,${C.gold})`,borderRadius:14,padding:"22px 28px",marginBottom:22,boxShadow:`0 8px 28px rgba(46,134,224,0.4), 0 2px 8px rgba(201,147,46,0.25)`,border:"1px solid rgba(255,255,255,0.25)"}}>
-      <div style={{position:"absolute",top:-30,right:10,fontSize:130,lineHeight:1,color:"rgba(255,255,255,0.14)",fontFamily:"'Baloo 2',sans-serif",fontWeight:800,pointerEvents:"none"}}>"</div>
-      <div style={{position:"relative",fontSize:10,fontWeight:800,color:"rgba(255,255,255,0.85)",textTransform:"uppercase",letterSpacing:1.5,fontFamily:"'Baloo 2',sans-serif",marginBottom:6}}>⚡ Daily Motivation</div>
-      <p style={{position:"relative",margin:0,fontSize:19,fontWeight:800,color:"#fff",fontFamily:"'Baloo 2',sans-serif",fontStyle:"italic",lineHeight:1.4,textShadow:"0 2px 6px rgba(0,0,0,0.2)"}}>"Success is the sum of small efforts, repeated day in and day out."<span style={{display:"block",marginTop:6,fontSize:13,fontWeight:700,fontStyle:"normal",color:"rgba(255,255,255,0.9)",letterSpacing:0.3}}>— Robert Collier</span></p>
-    </div>
-    <div style={{marginBottom:24}}><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Baloo 2',sans-serif"}}>Coaching Dashboard</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>Milestone Mortgage Solutions</p></div>
-  </div>;
 }
 
 function ResourcesPage({data,filter,setFilter,setModal}){
