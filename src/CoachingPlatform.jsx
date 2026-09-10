@@ -189,11 +189,8 @@ export default function App(){
 
         <div style={{padding:"10px 0",flex:1}}>
           {[
-            {key:"dashboard",icon:I.dashboard,label:"Dashboard"},
-            {key:"officers",icon:I.people,label:"Loan Officers"},
-            {key:"wins",icon:I.star,label:"Weekly Wins"},
-            {key:"activity",icon:I.trend,label:"Activity"},
             {key:"resources",icon:I.resources,label:"Resources"},
+            {key:"dashboard",icon:I.dashboard,label:"Dashboard"},
             {key:"calendar",icon:I.cal,label:"Calendar"},
             {key:"recaps",icon:I.msg,label:"Recaps"},
           ].map(item=>(
@@ -209,21 +206,15 @@ export default function App(){
         </div>
 
         <div style={{padding:"14px 20px",borderTop:`1px solid ${C.border}`,fontSize:10,color:C.dim,fontFamily:"'Baloo 2',sans-serif",lineHeight:1.8}}>
-          {data.officers.length} officers · {data.tasks.length} tasks<br/>NMLS #1815656
+          {data.resources.length} resources<br/>NMLS #1815656
         </div>
       </nav>
 
       {/* ── Main — everything on one scrollable page ── */}
       <main style={{flex:1,padding:"24px 32px",overflowY:"auto",maxHeight:"100vh"}}>
-        <section id="dashboard"><Dashboard data={data} g={gS} oS={oS} goToOfficer={goToOfficer} dSt={dSt(TODAY)}/></section>
-        <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
-        <section id="officers"><Officers data={data} oS={oS} setModal={setModal} search={search} setSearch={setSearch} expandedId={expandedOfficerId} setExpandedId={setExpandedOfficerId} toggle={toggleC} addN={addN} togD={togD} setDN={setDN}/></section>
-        <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
-        <section id="wins"><WinsPage data={data} setModal={setModal}/></section>
-        <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
-        <section id="activity"><ActivityPage data={data} date={aDate} setDate={setADate} logM={logM} setModal={setModal} dDate={dDate} setDDate={setDDate} togD={togD} setDN={setDN} delDT={delDT} tF={tF} setTF={setTF} toggle={toggleC}/></section>
-        <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
         <section id="resources"><ResourcesPage data={data} filter={rF} setFilter={setRF} setModal={setModal}/></section>
+        <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
+        <section id="dashboard"><Dashboard data={data}/></section>
         <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
         <section id="calendar"><CalendarPage/></section>
         <div style={{borderTop:`1px solid ${C.border}`,margin:"36px 0"}}/>
@@ -254,54 +245,14 @@ export default function App(){
 // ═══════════════════════════════════════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════════
-function Dashboard({data,g,oS,goToOfficer,dSt}){
-  const board=data.officers.map(o=>({o,weekPts:officerPoints(data,o.id,P_WEEK),lastWeekPts:officerPoints(data,o.id,P_LASTWEEK),allTime:officerPoints(data,o.id,P_ALL),streak:officerStreak(data,o.id)}));
-  const ranked=[...board].sort((a,b)=>b.weekPts-a.weekPts).map((r,i)=>({...r,rank:i+1}));
-  const lastRanks={};[...board].sort((a,b)=>b.lastWeekPts-a.lastWeekPts).forEach((r,i)=>{lastRanks[r.o.id]=i+1;});
-  const podium=ranked.slice(0,3);
+function Dashboard({data}){
   return<div>
     <div style={{position:"relative",overflow:"hidden",background:`linear-gradient(120deg,${C.accent},${C.primary} 55%,${C.gold})`,borderRadius:14,padding:"22px 28px",marginBottom:22,boxShadow:`0 8px 28px rgba(46,134,224,0.4), 0 2px 8px rgba(201,147,46,0.25)`,border:"1px solid rgba(255,255,255,0.25)"}}>
       <div style={{position:"absolute",top:-30,right:10,fontSize:130,lineHeight:1,color:"rgba(255,255,255,0.14)",fontFamily:"'Baloo 2',sans-serif",fontWeight:800,pointerEvents:"none"}}>"</div>
       <div style={{position:"relative",fontSize:10,fontWeight:800,color:"rgba(255,255,255,0.85)",textTransform:"uppercase",letterSpacing:1.5,fontFamily:"'Baloo 2',sans-serif",marginBottom:6}}>⚡ Daily Motivation</div>
       <p style={{position:"relative",margin:0,fontSize:19,fontWeight:800,color:"#fff",fontFamily:"'Baloo 2',sans-serif",fontStyle:"italic",lineHeight:1.4,textShadow:"0 2px 6px rgba(0,0,0,0.2)"}}>"Success is the sum of small efforts, repeated day in and day out."<span style={{display:"block",marginTop:6,fontSize:13,fontWeight:700,fontStyle:"normal",color:"rgba(255,255,255,0.9)",letterSpacing:0.3}}>— Robert Collier</span></p>
     </div>
-    <div style={{marginBottom:24}}><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Baloo 2',sans-serif"}}>Coaching Dashboard</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>Milestone Mortgage Solutions — Team Progress</p></div>
-    <div style={{display:"grid",gridTemplateColumns:"1fr",gap:16}}>
-      <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:20}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,flexWrap:"wrap",gap:6}}>
-          <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{color:C.gold}}>{I.trophy}</span><h3 style={{margin:0,fontSize:14,fontWeight:600,color:C.white,fontFamily:"'Baloo 2',sans-serif"}}>Leaderboard</h3></div>
-          <span style={{fontSize:9,color:C.dim,fontFamily:"'Baloo 2',sans-serif",textTransform:"uppercase",letterSpacing:0.6}}>This Week's Points</span>
-        </div>
-        {podium.length===3&&<div style={{display:"flex",alignItems:"flex-end",gap:12,marginBottom:26,padding:"0 4px"}}>
-          {[podium[1],podium[0],podium[2]].map((r,pi)=>{
-            const h=pi===1?120:pi===0?92:76;
-            const rankColors={1:{bg:"linear-gradient(135deg,#FFD24D,#E8A317)",ring:"#FFD24D",shadow:"rgba(232,163,23,0.45)"},2:{bg:"linear-gradient(135deg,#8FD3FE,#4FA9E8)",ring:"#4FA9E8",shadow:"rgba(79,169,232,0.4)"},3:{bg:"linear-gradient(135deg,#FFAE73,#E8722D)",ring:"#E8722D",shadow:"rgba(232,114,45,0.4)"}}[r.rank];
-            return<div key={r.o.id} onClick={()=>goToOfficer(r.o)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",cursor:"pointer"}}>
-              <div style={{width:pi===1?30:26,height:pi===1?30:26,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:pi===1?15:13,fontWeight:800,color:"#fff",background:rankColors.bg,marginBottom:6,boxShadow:`0 3px 10px ${rankColors.shadow}`,fontFamily:"'Baloo 2',sans-serif",flexShrink:0}}>{r.rank}</div>
-              <div style={{width:pi===1?76:60,height:pi===1?76:60,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:pi===1?22:17,fontWeight:700,color:"#fff",background:`linear-gradient(135deg,${C.gold},${C.primary})`,marginBottom:9,border:`3px solid ${rankColors.ring}`,flexShrink:0}}>{r.o.avatar}</div>
-              <div style={{fontSize:pi===1?15:13,fontWeight:700,color:C.white,textAlign:"center",marginBottom:2,lineHeight:1.25,wordBreak:"break-word"}}>{r.o.name}</div>
-              <div style={{fontSize:pi===1?14:12,color:rankColors.ring,fontWeight:700,fontFamily:"'Baloo 2',sans-serif",marginBottom:8}}>{r.weekPts} pts</div>
-              <div style={{width:"100%",height:h,background:`linear-gradient(180deg,${rankColors.shadow},rgba(212,168,75,0.06))`,borderRadius:"8px 8px 0 0",border:`1px solid ${rankColors.ring}55`,borderBottom:"none"}}/>
-            </div>;
-          })}
-        </div>}
-        {ranked.map(r=>{
-          const lvl=levelFor(r.allTime);
-          const lastRank=lastRanks[r.o.id]||r.rank;
-          const trend=r.rank<lastRank?"up":r.rank>lastRank?"down":"same";
-          return<div key={r.o.id} onClick={()=>goToOfficer(r.o)} style={{display:"flex",alignItems:"center",gap:9,padding:"8px 10px",marginBottom:2,borderRadius:7,cursor:"pointer",background:r.rank===1?"rgba(212,168,75,0.05)":"transparent"}} onMouseEnter={e=>e.currentTarget.style.background="rgba(16,23,58,0.03)"} onMouseLeave={e=>e.currentTarget.style.background=r.rank===1?"rgba(212,168,75,0.05)":"transparent"}>
-            <div style={{width:16,fontSize:12,fontWeight:700,color:r.rank===1?C.gold:C.dim,fontFamily:"'Baloo 2',sans-serif"}}>#{r.rank}</div>
-            <span style={{width:11,fontSize:10,color:trend==="up"?C.green:trend==="down"?C.red:C.dim}}>{trend==="up"?"▲":trend==="down"?"▼":"–"}</span>
-            <div style={{width:30,height:30,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:C.white,background:`linear-gradient(135deg,${r.rank===1?C.gold:C.primary}50,${r.rank===1?"#E07C5A":C.accent}50)`,flexShrink:0}}>{r.o.avatar}</div>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:13,fontWeight:500,color:C.white,display:"flex",alignItems:"center",gap:5}}>{r.o.name}<span style={{fontSize:11}} title={lvl.name}>{lvl.icon}</span></div>
-              <div style={{fontSize:10,color:C.muted,display:"flex",gap:6,alignItems:"center"}}>{r.streak>0&&<span style={{color:C.red}}>🔥{r.streak}</span>}<span>{lvl.name}</span></div>
-            </div>
-            <span style={{fontSize:13,fontWeight:700,color:C.gold,fontFamily:"'Baloo 2',sans-serif"}}>{r.weekPts}<span style={{fontSize:9,color:C.dim,fontWeight:400}}> pts</span></span>
-          </div>;})}
-        {ranked.length===0&&<p style={{color:C.muted,fontSize:13}}>Add loan officers to start the competition.</p>}
-      </div>
-    </div>
+    <div style={{marginBottom:24}}><h1 style={{fontSize:24,fontWeight:700,color:C.white,margin:0,fontFamily:"'Baloo 2',sans-serif"}}>Coaching Dashboard</h1><p style={{color:C.muted,margin:"3px 0 0",fontSize:13}}>Milestone Mortgage Solutions</p></div>
   </div>;
 }
 
